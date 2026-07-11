@@ -56,25 +56,48 @@ class AutomationAccessibilityService : AccessibilityService() {
 
     // --- Finding -----------------------------------------------------------
 
-    fun findByText(text: String, exact: Boolean): AccessibilityNodeInfo? {
-        val root = rootInActiveWindow ?: return null
-        val matches = root.findAccessibilityNodeInfosByText(text) ?: return null
-        return if (exact) {
-            matches.firstOrNull { it.text?.toString() == text || it.contentDescription?.toString() == text }
-        } else {
-            matches.firstOrNull()
+    /**
+     * Every window we can read, not just the active one. Browsers render the
+     * page in their own window and there are often overlays (ad "✕" buttons,
+     * PiP, keyboards) on top; searching only [rootInActiveWindow] misses the
+     * web content. Requires flagRetrieveInteractiveWindows (set in config).
+     */
+    private fun candidateRoots(): List<AccessibilityNodeInfo> {
+        val roots = ArrayList<AccessibilityNodeInfo>()
+        rootInActiveWindow?.let { roots.add(it) }
+        try {
+            windows?.forEach { window -> window.root?.let { roots.add(it) } }
+        } catch (_: Exception) {
+            // Some OEM builds throw when enumerating windows; the active root
+            // is still in the list.
         }
+        return roots
+    }
+
+    fun findByText(text: String, exact: Boolean): AccessibilityNodeInfo? {
+        for (root in candidateRoots()) {
+            val matches = root.findAccessibilityNodeInfosByText(text) ?: continue
+            val hit = if (exact) {
+                matches.firstOrNull {
+                    it.text?.toString() == text || it.contentDescription?.toString() == text
+                }
+            } else {
+                matches.firstOrNull()
+            }
+            if (hit != null) return hit
+        }
+        return null
     }
 
     fun findById(viewId: String): AccessibilityNodeInfo? {
-        val root = rootInActiveWindow ?: return null
-        return root.findAccessibilityNodeInfosByViewId(viewId)?.firstOrNull()
+        for (root in candidateRoots()) {
+            root.findAccessibilityNodeInfosByViewId(viewId)?.firstOrNull()?.let { return it }
+        }
+        return null
     }
 
-    fun isTextPresent(text: String): Boolean {
-        val root = rootInActiveWindow ?: return false
-        return (root.findAccessibilityNodeInfosByText(text)?.isNotEmpty()) == true
-    }
+    fun isTextPresent(text: String): Boolean =
+        candidateRoots().any { (it.findAccessibilityNodeInfosByText(text)?.isNotEmpty()) == true }
 
     suspend fun waitForText(text: String, timeoutMs: Long): Boolean {
         val deadline = System.currentTimeMillis() + timeoutMs
@@ -125,12 +148,13 @@ class AutomationAccessibilityService : AccessibilityService() {
      * non-Shizuku path when no explicit target field was given.
      */
     fun setTextOnFocused(text: String): Boolean {
-        val root = rootInActiveWindow ?: return false
-        val focused = root.findFocus(AccessibilityNodeInfo.FOCUS_INPUT)
-            ?: root.findFocus(AccessibilityNodeInfo.FOCUS_ACCESSIBILITY)
-            ?: return false
-        if (!focused.isEditable) return false
-        return setText(focused, text)
+        for (root in candidateRoots()) {
+            val focused = root.findFocus(AccessibilityNodeInfo.FOCUS_INPUT)
+                ?: root.findFocus(AccessibilityNodeInfo.FOCUS_ACCESSIBILITY)
+                ?: continue
+            if (focused.isEditable) return setText(focused, text)
+        }
+        return false
     }
 
     private suspend fun clickNode(node: AccessibilityNodeInfo): Boolean {
