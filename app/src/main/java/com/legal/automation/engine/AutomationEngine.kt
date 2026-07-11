@@ -277,9 +277,11 @@ class AutomationEngine(
             return ok()
         }
 
-        // Non-Shizuku fallback: accessibility set-text on the field.
+        // Non-Shizuku fallback: accessibility set-text. If the matched node
+        // isn't itself editable (e.g. a <label> we clicked to focus the real
+        // <input>), fall back to whatever now has input focus.
         val applied = when {
-            targetNode != null -> svc.setText(targetNode, value)
+            targetNode != null -> svc.setText(targetNode, value) || svc.setTextOnFocused(value)
             else -> svc.setTextOnFocused(value)
         }
         if (applied) return ok()

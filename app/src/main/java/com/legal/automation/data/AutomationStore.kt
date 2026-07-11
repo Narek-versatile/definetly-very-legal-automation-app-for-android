@@ -63,8 +63,10 @@ class AutomationStore(context: Context) {
      * best-effort defaults — tweak per site in the editor after seeing the page.
      */
     private fun sampleAutomations(): List<Automation> {
-        val sites = listOf(
-            "TopMinecraftServers" to "https://topminecraftservers.org/vote/18687",
+        // Site 1 is tuned to the real page (label "Minecraft Username", button
+        // "Vote!", invisible reCAPTCHA). The rest use a generic template until
+        // each is dialed in the same way.
+        val rest = listOf(
             "Best-Minecraft-Servers" to "https://best-minecraft-servers.co/server-jartexnetwork.4402/vote",
             "MineRank" to "https://www.minerank.com/jartexnetwork/vote",
             "Minecraft-Server-List" to "https://minecraft-server-list.com/server/288369/vote/",
@@ -72,8 +74,34 @@ class AutomationStore(context: Context) {
             "MinecraftKrant" to "https://minecraftkrant.nl/server/jartexnetwork/vote",
             "Minecraft.buzz" to "https://minecraft.buzz/server/24&tab=vote",
         )
-        return sites.mapIndexed { index, (label, url) -> voteAutomation(index + 1, label, url) }
+        return listOf(topMinecraftServersVote()) +
+            rest.mapIndexed { index, (label, url) -> voteAutomation(index + 2, label, url) }
     }
+
+    /** Perfected flow for topminecraftservers.org/vote/18687. */
+    private fun topMinecraftServersVote() = Automation(
+        name = "Vote 1: TopMinecraftServers",
+        description = "Opens the vote page, types your {username} in the Minecraft Username " +
+            "box, taps Vote!, then pauses in case the (usually invisible) reCAPTCHA shows a " +
+            "challenge. Set your username in Settings.",
+        steps = listOf(
+            Step.OpenUrl(
+                url = "https://topminecraftservers.org/vote/18687",
+                target = UrlTarget.GOOGLE_APP,
+            ),
+            Step.WaitFor(text = "Minecraft Username", timeoutMs = 15000),
+            Step.TapText(text = "Minecraft Username"), // focuses the username field
+            Step.InputText(text = "{username}", retry = RetryPolicy(attempts = 2)),
+            Step.TapText(text = "Vote!"),
+            Step.ManualStep(
+                message = "If a reCAPTCHA image challenge appears, solve it then wait. " +
+                    "It's usually invisible, so often nothing to do.",
+                timeoutMs = 15000,
+            ),
+            Step.Sleep(ms = 4000),
+            Step.Verify(text = "hank", expectPresent = true), // "Thank you for voting"
+        ),
+    )
 
     private fun voteAutomation(number: Int, siteLabel: String, url: String) = Automation(
         name = "Vote $number: $siteLabel",
