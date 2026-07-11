@@ -2,6 +2,7 @@ package com.legal.automation
 
 import android.app.Application
 import com.legal.automation.data.AutomationStore
+import com.legal.automation.data.SettingsStore
 import com.legal.automation.engine.AlertManager
 import com.legal.automation.engine.AutomationEngine
 import com.legal.automation.engine.LogRepository
@@ -21,6 +22,8 @@ class App : Application() {
         private set
     lateinit var engine: AutomationEngine
         private set
+    lateinit var settings: SettingsStore
+        private set
 
     override fun onCreate() {
         super.onCreate()
@@ -28,7 +31,8 @@ class App : Application() {
         alerts = AlertManager(this).also { it.ensureChannels() }
         store = AutomationStore(this)
         logs = LogRepository(this)
-        engine = AutomationEngine(this, ShizukuManager, alerts, logs)
+        settings = SettingsStore(this)
+        engine = AutomationEngine(this, ShizukuManager, alerts, logs, settings)
         ShizukuManager.init()
     }
 

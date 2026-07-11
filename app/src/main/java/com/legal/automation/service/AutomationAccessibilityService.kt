@@ -120,6 +120,19 @@ class AutomationAccessibilityService : AccessibilityService() {
         return node.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, args)
     }
 
+    /**
+     * Types into whatever editable field currently has input focus — the
+     * non-Shizuku path when no explicit target field was given.
+     */
+    fun setTextOnFocused(text: String): Boolean {
+        val root = rootInActiveWindow ?: return false
+        val focused = root.findFocus(AccessibilityNodeInfo.FOCUS_INPUT)
+            ?: root.findFocus(AccessibilityNodeInfo.FOCUS_ACCESSIBILITY)
+            ?: return false
+        if (!focused.isEditable) return false
+        return setText(focused, text)
+    }
+
     private suspend fun clickNode(node: AccessibilityNodeInfo): Boolean {
         var target: AccessibilityNodeInfo? = node
         while (target != null && !target.isClickable) {

@@ -2,6 +2,7 @@ package com.legal.automation.engine
 
 import android.content.Context
 import android.content.Intent
+import com.legal.automation.data.SettingsStore
 import com.legal.automation.model.Automation
 import com.legal.automation.model.Step
 import com.legal.automation.service.AutomationAccessibilityService
@@ -20,9 +21,17 @@ class AutomationEngine(
     private val shizuku: ShizukuManager,
     private val alerts: AlertManager,
     private val logs: LogRepository,
+    private val settings: SettingsStore,
 ) {
 
     private data class StepResult(val success: Boolean, val message: String)
+
+    /**
+     * True only when Shizuku should actually be used: the user hasn't switched
+     * to non-Shizuku mode AND Shizuku is granted and ready.
+     */
+    private fun shizukuUsable(): Boolean =
+        settings.useShizuku.value && shizuku.status.value == ShizukuManager.Status.READY
 
     suspend fun run(automation: Automation): RunLog {
         val startedAt = System.currentTimeMillis()
@@ -141,8 +150,9 @@ class AutomationEngine(
     }
 
     private suspend fun launchApp(step: Step.LaunchApp): StepResult {
-        // Prefer Shizuku so the launch works even from the background.
-        if (shizuku.status.value == ShizukuManager.Status.READY && shizuku.launchApp(step.packageName)) {
+        // Prefer Shizuku so the launch works even from the background; in
+        // non-Shizuku mode fall straight through to the normal launch intent.
+        if (shizukuUsable() && shizuku.launchApp(step.packageName)) {
             return ok()
         }
         val intent = context.packageManager.getLaunchIntentForPackage(step.packageName)
@@ -157,27 +167,31 @@ class AutomationEngine(
     }
 
     private suspend fun inputText(step: Step.InputText): StepResult {
-        val svc = service
+        val svc = service ?: return fail("Accessibility service is not enabled")
         val hasTarget = step.intoText != null || step.intoId != null
-        var focused = false
-        if (hasTarget) {
-            val node = svc?.focusField(step.intoText, step.intoId)
+
+        // Focus the target field first, if one was named.
+        val targetNode = if (hasTarget) {
+            svc.focusField(step.intoText, step.intoId)?.also { delay(300) }
                 ?: return fail("target field not found")
-            focused = true
-            delay(300)
-            // Try Shizuku first (honours the "type via low-level input" preference).
-            if (shizuku.status.value == ShizukuManager.Status.READY && shizuku.typeText(step.text)) {
-                return ok()
-            }
-            return if (svc.setText(node, step.text)) ok() else fail("could not set text on field")
+        } else {
+            null
         }
-        // No explicit target: type into whatever currently has focus.
-        if (shizuku.status.value == ShizukuManager.Status.READY && shizuku.typeText(step.text)) {
+
+        // Preferred path: Shizuku low-level typing (unless disabled/unavailable).
+        if (shizukuUsable() && shizuku.typeText(step.text)) {
             return ok()
         }
+
+        // Non-Shizuku fallback: accessibility set-text on the field.
+        val applied = when {
+            targetNode != null -> svc.setText(targetNode, step.text)
+            else -> svc.setTextOnFocused(step.text)
+        }
+        if (applied) return ok()
         return fail(
-            "typing needs Shizuku (or a target field). " +
-                (if (!focused) "Set intoId/intoText, or grant Shizuku." else ""),
+            if (hasTarget) "could not set text on field"
+            else "no focused text field — set intoId/intoText, or enable Shizuku",
         )
     }
 

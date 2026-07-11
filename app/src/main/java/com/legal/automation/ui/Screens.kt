@@ -1,6 +1,5 @@
 package com.legal.automation.ui
 
-import android.content.Context
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -33,6 +32,7 @@ import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -101,6 +101,7 @@ private fun HomeScreen(
     val automations by vm.automations.collectAsState()
     val runState by AutomationRunState.state.collectAsState()
     val shizuku by vm.shizukuStatus.collectAsState()
+    val useShizuku by vm.useShizuku.collectAsState()
     val accessibilityEnabled = rememberAccessibilityEnabled()
     val context = LocalContext.current
 
@@ -142,14 +143,12 @@ private fun HomeScreen(
             }
 
             item {
-                val (ok, bad, btn, action) = shizukuState(shizuku, vm, context)
-                PermissionCard(
-                    title = "Shizuku (low-level input)",
-                    ok = ok,
-                    okText = "Ready",
-                    badText = bad,
-                    buttonText = btn,
-                    onClick = action,
+                ShizukuModeCard(
+                    useShizuku = useShizuku,
+                    status = shizuku,
+                    onToggle = { vm.setUseShizuku(it) },
+                    onGrant = { vm.requestShizuku() },
+                    onRecheck = { vm.refreshShizuku() },
                 )
             }
 
@@ -285,25 +284,66 @@ private fun PermissionCard(
     }
 }
 
-private data class ShizukuUi(
-    val ok: Boolean,
-    val badText: String,
-    val buttonText: String,
-    val action: () -> Unit,
-)
-
-private fun shizukuState(
+@Composable
+private fun ShizukuModeCard(
+    useShizuku: Boolean,
     status: ShizukuManager.Status,
-    vm: MainViewModel,
-    @Suppress("UNUSED_PARAMETER") context: Context,
-): ShizukuUi = when (status) {
-    ShizukuManager.Status.READY -> ShizukuUi(true, "", "") {}
-    ShizukuManager.Status.NEEDS_PERMISSION ->
-        ShizukuUi(false, "Installed but not granted", "Grant") { vm.requestShizuku() }
-    ShizukuManager.Status.UNAVAILABLE ->
-        ShizukuUi(false, "Not running — optional, enables app launch & typing", "Recheck") {
-            vm.refreshShizuku()
+    onToggle: (Boolean) -> Unit,
+    onGrant: () -> Unit,
+    onRecheck: () -> Unit,
+) {
+    Card {
+        Column(Modifier.padding(16.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text("Low-level input (Shizuku)", style = MaterialTheme.typography.titleSmall)
+                    Text(
+                        if (useShizuku) {
+                            "On when available — faster app launch & typing"
+                        } else {
+                            "Off — non-Shizuku mode (accessibility only)"
+                        },
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                }
+                Switch(checked = useShizuku, onCheckedChange = onToggle)
+            }
+
+            // Only nudge about Shizuku setup when the user actually wants it.
+            if (useShizuku && status != ShizukuManager.Status.READY) {
+                Spacer(Modifier.height(8.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        Icons.Filled.Error,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.error,
+                    )
+                    Spacer(Modifier.size(8.dp))
+                    Text(
+                        when (status) {
+                            ShizukuManager.Status.NEEDS_PERMISSION -> "Installed but not granted"
+                            else -> "Not running — everything still works without it"
+                        },
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier.weight(1f),
+                    )
+                    TextButton(
+                        onClick = if (status == ShizukuManager.Status.NEEDS_PERMISSION) onGrant else onRecheck,
+                    ) {
+                        Text(if (status == ShizukuManager.Status.NEEDS_PERMISSION) "Grant" else "Recheck")
+                    }
+                }
+            }
+            if (useShizuku && status == ShizukuManager.Status.READY) {
+                Spacer(Modifier.height(6.dp))
+                Text(
+                    "Shizuku ready.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Color(0xFF2E7D32),
+                )
+            }
         }
+    }
 }
 
 // --- Logs --------------------------------------------------------------------

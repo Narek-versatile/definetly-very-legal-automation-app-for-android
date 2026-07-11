@@ -18,16 +18,30 @@ engines:
 > raw **JSON editor**. A record-and-replay feature can be layered on later
 > because it would just emit the same JSON.
 
+### Non-Shizuku mode (redundancy)
+
+Shizuku is an **accelerator, never a requirement**. A Home-screen toggle
+switches the engine into **non-Shizuku mode**, where every step falls back to
+the AccessibilityService:
+
+| Step | With Shizuku | Non-Shizuku fallback |
+|------|--------------|----------------------|
+| `launch_app` | `monkey`/`am` (works from background) | normal launch intent |
+| `input_text` | `input text` keystrokes | accessibility `ACTION_SET_TEXT` on the target or currently-focused field |
+| `tap_xy` | `input tap` | gesture dispatch |
+
+The same automations run either way — the toggle just changes *how* the
+low-level actions are performed. When Shizuku isn't installed/granted the app
+behaves as if the toggle were off.
+
 ---
 
-## Status / honesty note
+## Continuous integration
 
-This repository is a complete, self-contained Android Studio project, but **it
-was not compiled in the environment where it was generated** — that sandbox's
-network policy blocks Google's servers (`dl.google.com`, the Android Gradle
-Plugin, and the Android SDK), so a real Gradle build could not be run there.
-Build it on your machine with the steps below. The Gradle wrapper is committed
-and pinned to 8.14.3.
+`.github/workflows/android.yml` builds the debug APK on every push (JDK 17 +
+Android SDK 34) and uploads it as the **`app-debug`** artifact. This is where
+the project is actually compiled — grab the APK from a green run's artifacts,
+or build locally with the steps below.
 
 ---
 

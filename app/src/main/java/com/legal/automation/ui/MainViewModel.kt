@@ -15,6 +15,7 @@ class MainViewModel(private val app: App) : ViewModel() {
     val automations = app.store.automations
     val logs = app.logs.logs
     val shizukuStatus = ShizukuManager.status
+    val useShizuku = app.settings.useShizuku
 
     init {
         viewModelScope.launch { app.store.load() }
@@ -22,6 +23,8 @@ class MainViewModel(private val app: App) : ViewModel() {
     }
 
     fun refreshShizuku() = ShizukuManager.refreshStatus()
+
+    fun setUseShizuku(value: Boolean) = app.settings.setUseShizuku(value)
 
     fun requestShizuku() {
         viewModelScope.launch {
