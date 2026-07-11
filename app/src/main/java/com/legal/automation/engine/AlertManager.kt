@@ -71,6 +71,19 @@ class AlertManager(private val context: Context) {
         vibrate()
     }
 
+    fun alertManual(message: String) {
+        val builder = NotificationCompat.Builder(context, CHANNEL_ALERTS)
+            .setSmallIcon(android.R.drawable.stat_sys_warning)
+            .setContentTitle("Action needed")
+            .setContentText(message)
+            .setStyle(NotificationCompat.BigTextStyle().bigText(message))
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setAutoCancel(true)
+            .setVibrate(longArrayOf(0, 200, 100, 200))
+        notify(builder.build())
+        vibrate()
+    }
+
     fun alertSuccess(automationName: String) {
         val builder = NotificationCompat.Builder(context, CHANNEL_ALERTS)
             .setSmallIcon(android.R.drawable.stat_notify_sync)

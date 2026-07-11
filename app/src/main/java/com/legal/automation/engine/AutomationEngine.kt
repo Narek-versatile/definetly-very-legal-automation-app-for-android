@@ -1,10 +1,14 @@
 package com.legal.automation.engine
 
+import android.app.SearchManager
+import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
+import android.net.Uri
 import com.legal.automation.data.SettingsStore
 import com.legal.automation.model.Automation
 import com.legal.automation.model.Step
+import com.legal.automation.model.UrlTarget
 import com.legal.automation.service.AutomationAccessibilityService
 import com.legal.automation.shizuku.ShizukuManager
 import kotlinx.coroutines.delay
@@ -147,7 +151,66 @@ class AutomationEngine(
                 }
             }
         }
+
+        is Step.OpenUrl -> openUrl(step)
+        is Step.WebSearch -> webSearch(step)
+
+        is Step.ManualStep -> {
+            alerts.alertManual(resolve(step.message))
+            delay(step.timeoutMs)
+            ok()
+        }
     }
+
+    private fun openUrl(step: Step.OpenUrl): StepResult {
+        val uri = Uri.parse(resolve(step.url))
+        val view = Intent(Intent.ACTION_VIEW, uri).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        val intent = when (step.target) {
+            UrlTarget.GOOGLE_APP -> Intent(view).setPackage(GOOGLE_APP_PACKAGE)
+            UrlTarget.SPECIFIC_APP ->
+                Intent(view).setPackage(step.packageName ?: return fail("no target app set"))
+            UrlTarget.DEFAULT_BROWSER -> view
+            UrlTarget.CHOOSER ->
+                Intent.createChooser(view, "Open with").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+        return try {
+            context.startActivity(intent)
+            ok()
+        } catch (e: ActivityNotFoundException) {
+            // The chosen app can't open it — fall back to the default browser so
+            // the run keeps going, and say what happened.
+            if (step.target == UrlTarget.GOOGLE_APP || step.target == UrlTarget.SPECIFIC_APP) {
+                try {
+                    context.startActivity(view)
+                    return fail("target app couldn't open the URL; used the default browser instead")
+                } catch (_: ActivityNotFoundException) {
+                }
+            }
+            fail("no app can open $uri")
+        }
+    }
+
+    private fun webSearch(step: Step.WebSearch): StepResult {
+        val query = resolve(step.query)
+        val search = Intent(Intent.ACTION_WEB_SEARCH)
+            .putExtra(SearchManager.QUERY, query)
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        return try {
+            context.startActivity(Intent(search).setPackage(GOOGLE_APP_PACKAGE))
+            ok()
+        } catch (e: ActivityNotFoundException) {
+            try {
+                context.startActivity(search)
+                ok()
+            } catch (_: ActivityNotFoundException) {
+                fail("no app can run a web search")
+            }
+        }
+    }
+
+    /** Substitutes stored tokens like `{username}` into step text. */
+    private fun resolve(text: String): String =
+        text.replace("{username}", settings.username.value)
 
     private suspend fun launchApp(step: Step.LaunchApp): StepResult {
         // Prefer Shizuku so the launch works even from the background; in
@@ -169,6 +232,7 @@ class AutomationEngine(
     private suspend fun inputText(step: Step.InputText): StepResult {
         val svc = service ?: return fail("Accessibility service is not enabled")
         val hasTarget = step.intoText != null || step.intoId != null
+        val value = resolve(step.text)
 
         // Focus the target field first, if one was named.
         val targetNode = if (hasTarget) {
@@ -179,14 +243,14 @@ class AutomationEngine(
         }
 
         // Preferred path: Shizuku low-level typing (unless disabled/unavailable).
-        if (shizukuUsable() && shizuku.typeText(step.text)) {
+        if (shizukuUsable() && shizuku.typeText(value)) {
             return ok()
         }
 
         // Non-Shizuku fallback: accessibility set-text on the field.
         val applied = when {
-            targetNode != null -> svc.setText(targetNode, step.text)
-            else -> svc.setTextOnFocused(step.text)
+            targetNode != null -> svc.setText(targetNode, value)
+            else -> svc.setTextOnFocused(value)
         }
         if (applied) return ok()
         return fail(
@@ -212,4 +276,8 @@ class AutomationEngine(
 
     private fun ok() = StepResult(true, "ok")
     private fun fail(reason: String) = StepResult(false, reason)
+
+    private companion object {
+        const val GOOGLE_APP_PACKAGE = "com.google.android.googlequicksearchbox"
+    }
 }

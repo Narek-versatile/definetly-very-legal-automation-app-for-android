@@ -47,6 +47,7 @@ import androidx.compose.ui.unit.dp
 import com.legal.automation.model.Automation
 import com.legal.automation.model.ScrollDirection
 import com.legal.automation.model.Step
+import com.legal.automation.model.UrlTarget
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -219,10 +220,13 @@ private fun StepRow(
 }
 
 private enum class StepType(val label: String) {
+    OPEN_URL("Open URL in app"),
+    WEB_SEARCH("Google search"),
     LAUNCH_APP("Launch app"),
     TAP_TEXT("Tap text"),
     TAP_ID("Tap id"),
     INPUT_TEXT("Type text"),
+    MANUAL_STEP("Manual step (captcha)"),
     SCROLL("Scroll"),
     WAIT_FOR("Wait for text"),
     VERIFY("Verify text"),
@@ -235,7 +239,7 @@ private fun AddStepDialog(
     onDismiss: () -> Unit,
     onAdd: (Step) -> Unit,
 ) {
-    var type by remember { mutableStateOf(StepType.TAP_TEXT) }
+    var type by remember { mutableStateOf(StepType.OPEN_URL) }
     var typeMenu by remember { mutableStateOf(false) }
     // Generic fields reused across types.
     var f1 by remember { mutableStateOf("") }
@@ -243,15 +247,33 @@ private fun AddStepDialog(
     var scroll by remember { mutableStateOf(ScrollDirection.DOWN) }
     var scrollMenu by remember { mutableStateOf(false) }
     var expectPresent by remember { mutableStateOf(true) }
+    var urlTarget by remember { mutableStateOf(UrlTarget.GOOGLE_APP) }
+    var urlTargetMenu by remember { mutableStateOf(false) }
+    var pkg by remember { mutableStateOf("") }
+    // Which field the app picker fills when a pick is made.
+    var pickerFor by remember { mutableStateOf<StepType?>(null) }
 
     fun build(): Step? = when (type) {
+        StepType.OPEN_URL -> f1.ifBlank { null }?.let {
+            if (urlTarget == UrlTarget.SPECIFIC_APP && pkg.isBlank()) return@let null
+            Step.OpenUrl(
+                url = it.trim(),
+                target = urlTarget,
+                packageName = if (urlTarget == UrlTarget.SPECIFIC_APP) pkg.trim() else null,
+            )
+        }
+        StepType.WEB_SEARCH -> f1.ifBlank { null }?.let { Step.WebSearch(query = it) }
+        StepType.MANUAL_STEP -> Step.ManualStep(
+            message = f1.ifBlank { "Do the manual step (e.g. solve the captcha), then wait…" },
+            timeoutMs = f2.toLongOrNull() ?: 20000,
+        )
         StepType.LAUNCH_APP -> f1.ifBlank { null }?.let {
             Step.LaunchApp(packageName = it.trim(), appLabel = f2.ifBlank { it.trim() })
         }
         StepType.TAP_TEXT -> f1.ifBlank { null }?.let { Step.TapText(text = it) }
         StepType.TAP_ID -> f1.ifBlank { null }?.let { Step.TapId(viewId = it.trim()) }
         StepType.INPUT_TEXT -> f1.ifBlank { null }?.let {
-            Step.InputText(text = it, intoId = f2.ifBlank { null }?.trim())
+            Step.InputText(text = it, intoText = f2.ifBlank { null }?.trim())
         }
         StepType.SCROLL -> Step.Scroll(direction = scroll)
         StepType.WAIT_FOR -> f1.ifBlank { null }?.let {
@@ -291,17 +313,49 @@ private fun AddStepDialog(
                 }
                 Spacer(Modifier.height(8.dp))
                 when (type) {
+                    StepType.OPEN_URL -> {
+                        Field("URL (https://…)", f1) { f1 = it }
+                        OutlinedButton(onClick = { urlTargetMenu = true }) {
+                            Text("Open in: ${urlTargetLabel(urlTarget)}")
+                        }
+                        DropdownMenu(
+                            expanded = urlTargetMenu,
+                            onDismissRequest = { urlTargetMenu = false },
+                        ) {
+                            UrlTarget.entries.forEach { t ->
+                                DropdownMenuItem(
+                                    text = { Text(urlTargetLabel(t)) },
+                                    onClick = { urlTarget = t; urlTargetMenu = false },
+                                )
+                            }
+                        }
+                        if (urlTarget == UrlTarget.SPECIFIC_APP) {
+                            Spacer(Modifier.height(6.dp))
+                            Field("Package name", pkg) { pkg = it }
+                            OutlinedButton(onClick = { pickerFor = StepType.OPEN_URL }) {
+                                Text("Pick app")
+                            }
+                        }
+                    }
+                    StepType.WEB_SEARCH -> Field("Search query", f1) { f1 = it }
+                    StepType.MANUAL_STEP -> {
+                        Field("Alert message (optional)", f1) { f1 = it }
+                        Field("Wait ms (default 20000)", f2) { f2 = it }
+                    }
                     StepType.LAUNCH_APP -> {
                         Field("Package name (e.g. com.android.chrome)", f1) { f1 = it }
                         Field("Label (optional)", f2) { f2 = it }
+                        OutlinedButton(onClick = { pickerFor = StepType.LAUNCH_APP }) {
+                            Text("Pick app")
+                        }
                     }
                     StepType.TAP_TEXT, StepType.WAIT_FOR, StepType.VERIFY ->
                         Field("Text", f1) { f1 = it }
                     StepType.TAP_ID ->
                         Field("Resource id (com.app:id/foo)", f1) { f1 = it }
                     StepType.INPUT_TEXT -> {
-                        Field("Text to type", f1) { f1 = it }
-                        Field("Into field id (optional)", f2) { f2 = it }
+                        Field("Text to type (use {username})", f1) { f1 = it }
+                        Field("Into field label (optional)", f2) { f2 = it }
                     }
                     StepType.SLEEP -> Field("Milliseconds", f1) { f1 = it }
                     StepType.TAP_XY -> {
@@ -340,6 +394,27 @@ private fun AddStepDialog(
             }
         },
     )
+
+    if (pickerFor != null) {
+        AppPickerDialog(
+            onDismiss = { pickerFor = null },
+            onPick = { packageName, label ->
+                when (pickerFor) {
+                    StepType.LAUNCH_APP -> { f1 = packageName; f2 = label }
+                    StepType.OPEN_URL -> { pkg = packageName }
+                    else -> {}
+                }
+                pickerFor = null
+            },
+        )
+    }
+}
+
+private fun urlTargetLabel(target: UrlTarget): String = when (target) {
+    UrlTarget.GOOGLE_APP -> "Google app"
+    UrlTarget.DEFAULT_BROWSER -> "Default browser"
+    UrlTarget.CHOOSER -> "Choose app"
+    UrlTarget.SPECIFIC_APP -> "Specific app"
 }
 
 @Composable

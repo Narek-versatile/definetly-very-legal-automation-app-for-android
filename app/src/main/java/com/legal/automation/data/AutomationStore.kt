@@ -3,8 +3,8 @@ package com.legal.automation.data
 import android.content.Context
 import com.legal.automation.model.Automation
 import com.legal.automation.model.RetryPolicy
-import com.legal.automation.model.ScrollDirection
 import com.legal.automation.model.Step
+import com.legal.automation.model.UrlTarget
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -30,7 +30,7 @@ class AutomationStore(context: Context) {
     suspend fun load() = withContext(Dispatchers.IO) {
         val files = dir.listFiles { f -> f.extension == "json" }?.toList().orEmpty()
         if (files.isEmpty()) {
-            save(sampleAutomation())
+            sampleAutomations().forEach { save(it) }
         }
         refresh()
     }
@@ -55,19 +55,46 @@ class AutomationStore(context: Context) {
 
     fun get(id: String): Automation? = _automations.value.firstOrNull { it.id == id }
 
-    private fun sampleAutomation() = Automation(
-        name = "Example: search in Chrome",
-        description = "Opens Chrome, types a query, and verifies results appear. " +
-            "Edit or delete freely — this is just a template.",
+    /**
+     * Seeds one ready automation per JartexNetwork vote site. Each opens the
+     * page **in the Google app** (not Chrome), types your `{username}` (set it
+     * once in Settings), pauses so you can solve any captcha, then taps Vote
+     * and verifies. The field label ("Username") and button text ("Vote") are
+     * best-effort defaults — tweak per site in the editor after seeing the page.
+     */
+    private fun sampleAutomations(): List<Automation> {
+        val sites = listOf(
+            "TopMinecraftServers" to "https://topminecraftservers.org/vote/18687",
+            "Best-Minecraft-Servers" to "https://best-minecraft-servers.co/server-jartexnetwork.4402/vote",
+            "MineRank" to "https://www.minerank.com/jartexnetwork/vote",
+            "Minecraft-Server-List" to "https://minecraft-server-list.com/server/288369/vote/",
+            "Minecraft-MP" to "https://minecraft-mp.com/server/52462/vote/",
+            "MinecraftKrant" to "https://minecraftkrant.nl/server/jartexnetwork/vote",
+            "Minecraft.buzz" to "https://minecraft.buzz/server/24&tab=vote",
+        )
+        return sites.mapIndexed { index, (label, url) -> voteAutomation(index + 1, label, url) }
+    }
+
+    private fun voteAutomation(number: Int, siteLabel: String, url: String) = Automation(
+        name = "Vote $number: $siteLabel",
+        description = "Opens $url in the Google app, fills your {username}, waits for you " +
+            "to solve any captcha, then taps Vote. Set your username in Settings. " +
+            "If the field/button aren't found, edit this step's target text to match the page.",
         steps = listOf(
-            Step.LaunchApp(packageName = "com.android.chrome", appLabel = "Chrome"),
-            Step.Sleep(ms = 2500),
-            Step.TapId(viewId = "com.android.chrome:id/search_box_text"),
-            Step.InputText(text = "hello world", retry = RetryPolicy(attempts = 2)),
-            Step.Sleep(ms = 500),
-            Step.WaitFor(text = "hello", timeoutMs = 6000),
-            Step.Scroll(direction = ScrollDirection.DOWN),
-            Step.Verify(text = "hello", expectPresent = true),
+            Step.OpenUrl(url = url, target = UrlTarget.GOOGLE_APP),
+            Step.WaitFor(text = "ote", timeoutMs = 12000), // matches "Vote"/"vote"
+            Step.InputText(
+                text = "{username}",
+                intoText = "Username",
+                retry = RetryPolicy(attempts = 2),
+            ),
+            Step.ManualStep(
+                message = "Solve the captcha / 'I'm not a robot' if shown, then wait…",
+                timeoutMs = 25000,
+            ),
+            Step.TapText(text = "Vote"),
+            Step.Sleep(ms = 3000),
+            Step.Verify(text = "hank", expectPresent = true), // "Thank you for voting"
         ),
     )
 }

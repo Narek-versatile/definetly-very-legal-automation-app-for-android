@@ -13,6 +13,22 @@ data class RetryPolicy(
 @Serializable
 enum class ScrollDirection { UP, DOWN, LEFT, RIGHT }
 
+/** Where an [Step.OpenUrl] should open a web address. */
+@Serializable
+enum class UrlTarget {
+    /** The Google Search app (com.google.android.googlequicksearchbox) — not Chrome. */
+    GOOGLE_APP,
+
+    /** The system default browser (whatever the user set). */
+    DEFAULT_BROWSER,
+
+    /** Show the "Open with" chooser so any non-Chrome app can be picked. */
+    CHOOSER,
+
+    /** A specific app chosen by [Step.OpenUrl.packageName]. */
+    SPECIFIC_APP,
+}
+
 /**
  * A single unit of work in an automation. Steps are the JSON-serialisable
  * "source of truth"; the in-app builder and any future record-and-replay
@@ -132,5 +148,50 @@ sealed class Step {
         override val retry: RetryPolicy = RetryPolicy(),
     ) : Step() {
         override fun describe() = "Tap at ($x, $y)"
+    }
+
+    /**
+     * Open a web address in a chosen app — the "open in the Google app, not
+     * Chrome" action. Defaults to the Google Search app.
+     */
+    @Serializable
+    @SerialName("open_url")
+    data class OpenUrl(
+        val url: String,
+        val target: UrlTarget = UrlTarget.GOOGLE_APP,
+        val packageName: String? = null,
+        override val retry: RetryPolicy = RetryPolicy(attempts = 2),
+    ) : Step() {
+        override fun describe() = when (target) {
+            UrlTarget.GOOGLE_APP -> "Open $url in the Google app"
+            UrlTarget.DEFAULT_BROWSER -> "Open $url in the default browser"
+            UrlTarget.CHOOSER -> "Open $url (pick an app)"
+            UrlTarget.SPECIFIC_APP -> "Open $url in ${packageName ?: "app"}"
+        }
+    }
+
+    /** Run a Google/web search for a query (opens the Google app). */
+    @Serializable
+    @SerialName("web_search")
+    data class WebSearch(
+        val query: String,
+        override val retry: RetryPolicy = RetryPolicy(attempts = 2),
+    ) : Step() {
+        override fun describe() = "Google search “$query”"
+    }
+
+    /**
+     * Pause and alert the user to do something by hand (e.g. solve a captcha),
+     * then wait [timeoutMs] before continuing. Used in flows the app can't
+     * fully automate.
+     */
+    @Serializable
+    @SerialName("manual_step")
+    data class ManualStep(
+        val message: String = "Do the manual step, then wait…",
+        val timeoutMs: Long = 20000,
+        override val retry: RetryPolicy = RetryPolicy(attempts = 1),
+    ) : Step() {
+        override fun describe() = "Manual: $message"
     }
 }

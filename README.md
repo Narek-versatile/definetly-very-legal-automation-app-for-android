@@ -89,17 +89,44 @@ the run, **captures a screenshot**, and fires the failure alert.
 
 | `type` | Fields | Meaning |
 |--------|--------|---------|
+| `open_url` | `url`, `target`, `packageName?` | Open a URL in a chosen app. `target` = `GOOGLE_APP` (default, not Chrome), `DEFAULT_BROWSER`, `CHOOSER`, or `SPECIFIC_APP` (+`packageName`). |
+| `web_search` | `query` | Run a Google search in the Google app. |
 | `launch_app` | `packageName`, `appLabel` | Launch an app (Shizuku `monkey`, else normal intent). |
 | `tap_text` | `text`, `exact` | Tap the first element matching visible text. |
 | `tap_id` | `viewId` | Tap element with resource-id (`com.app:id/foo`). |
-| `input_text` | `text`, `intoText?`, `intoId?` | Focus a field then type (Shizuku `input text`, else accessibility set-text). |
+| `input_text` | `text`, `intoText?`, `intoId?` | Focus a field then type (Shizuku `input text`, else accessibility set-text). `text` may contain `{username}`. |
+| `manual_step` | `message`, `timeoutMs` | Alert you to do something by hand (e.g. **solve a captcha**), then wait. |
 | `scroll` | `direction` (`UP`/`DOWN`/`LEFT`/`RIGHT`) | Swipe the screen. |
 | `wait_for` | `text`, `timeoutMs` | Wait until text appears; fail on timeout. |
 | `verify` | `text`, `expectPresent` | Assert text is / isn't on screen — the "did it succeed?" check. |
 | `sleep` | `ms` | Fixed pause. |
 | `tap_xy` | `x`, `y` | Coordinate tap fallback (fragile). |
 
-Every step also accepts `retry: { attempts, backoffMs }`.
+Every step also accepts `retry: { attempts, backoffMs }`. Any `text` that
+contains the token **`{username}`** is replaced with the username you set on the
+Home screen — so one setting fills every form.
+
+### Built-in workflow: Minecraft server voting (JartexNetwork)
+
+On first launch the app seeds one automation per JartexNetwork vote site. Each
+one:
+
+1. `open_url` the vote page **in the Google app** (never Chrome),
+2. `input_text {username}` into the page's username box,
+3. `manual_step` — pauses and alerts you to **solve the captcha** (these sites
+   use reCAPTCHA; that part can't and shouldn't be automated),
+4. `tap_text "Vote"` and `verify` a "Thank you" message.
+
+Set your username once in **Settings → Your username**, then run each vote
+automation. Because every site's page differs, the field label (`Username`) and
+button text (`Vote`) are best-effort defaults — if a step can't find its target,
+open the automation and adjust the text to match what's actually on that page
+(use Accessibility Scanner / Layout Inspector to read the exact labels).
+
+> **Fair use:** these are public "one vote per day per IP" pages and you still
+> solve the captcha yourself, so this just saves typing — it isn't vote-stuffing.
+> Automated interaction may still be against a given site's terms; that's between
+> you and each site. The app only acts on your device, at your command.
 
 ### Example (the seeded sample)
 

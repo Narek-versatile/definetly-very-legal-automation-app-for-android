@@ -19,12 +19,25 @@ class SettingsStore(context: Context) {
     private val _useShizuku = MutableStateFlow(prefs.getBoolean(KEY_USE_SHIZUKU, true))
     val useShizuku: StateFlow<Boolean> = _useShizuku.asStateFlow()
 
+    /**
+     * Your Minecraft username (or any reusable value). Steps can reference it
+     * as the token `{username}`, so one setting fills every vote form.
+     */
+    private val _username = MutableStateFlow(prefs.getString(KEY_USERNAME, "").orEmpty())
+    val username: StateFlow<String> = _username.asStateFlow()
+
     fun setUseShizuku(value: Boolean) {
         prefs.edit().putBoolean(KEY_USE_SHIZUKU, value).apply()
         _useShizuku.value = value
     }
 
+    fun setUsername(value: String) {
+        prefs.edit().putString(KEY_USERNAME, value).apply()
+        _username.value = value
+    }
+
     private companion object {
         const val KEY_USE_SHIZUKU = "use_shizuku"
+        const val KEY_USERNAME = "username"
     }
 }

@@ -31,6 +31,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -102,6 +103,7 @@ private fun HomeScreen(
     val runState by AutomationRunState.state.collectAsState()
     val shizuku by vm.shizukuStatus.collectAsState()
     val useShizuku by vm.useShizuku.collectAsState()
+    val username by vm.username.collectAsState()
     val accessibilityEnabled = rememberAccessibilityEnabled()
     val context = LocalContext.current
 
@@ -150,6 +152,10 @@ private fun HomeScreen(
                     onGrant = { vm.requestShizuku() },
                     onRecheck = { vm.refreshShizuku() },
                 )
+            }
+
+            item {
+                UsernameCard(username = username, onChange = { vm.setUsername(it) })
             }
 
             if (runState.running) {
@@ -280,6 +286,27 @@ private fun PermissionCard(
             if (!ok) {
                 TextButton(onClick = onClick) { Text(buttonText) }
             }
+        }
+    }
+}
+
+@Composable
+private fun UsernameCard(username: String, onChange: (String) -> Unit) {
+    Card {
+        Column(Modifier.padding(16.dp)) {
+            Text("Your username", style = MaterialTheme.typography.titleSmall)
+            Text(
+                "Used wherever a step contains {username} — e.g. every vote form.",
+                style = MaterialTheme.typography.bodySmall,
+            )
+            Spacer(Modifier.height(8.dp))
+            OutlinedTextField(
+                value = username,
+                onValueChange = onChange,
+                singleLine = true,
+                label = { Text("Minecraft username") },
+                modifier = Modifier.fillMaxWidth(),
+            )
         }
     }
 }
