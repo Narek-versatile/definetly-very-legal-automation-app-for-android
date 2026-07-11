@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Simple "automation cursor / play" glyph centred in the safe zone. -->
+    <group android:scaleX="1.0" android:scaleY="1.0">
+        <path
+            android:fillColor="#38BDF8"
+            android:pathData="M42,34 L42,74 L54,66 L61,80 L69,76 L62,62 L76,60 Z" />
+    </group>
+</vector>

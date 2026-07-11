@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">Legal Automation</string>
+    <string name="accessibility_service_label">Legal Automation Engine</string>
+    <string name="accessibility_service_description">Lets Legal Automation read on-screen content and perform taps, scrolls and gestures in other apps so it can run your automations. Nothing leaves your device.</string>
+</resources>
