@@ -164,30 +164,60 @@ class AutomationEngine(
 
     private fun openUrl(step: Step.OpenUrl): StepResult {
         val uri = Uri.parse(resolve(step.url))
-        val view = Intent(Intent.ACTION_VIEW, uri).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-        val intent = when (step.target) {
-            UrlTarget.GOOGLE_APP -> Intent(view).setPackage(GOOGLE_APP_PACKAGE)
-            UrlTarget.SPECIFIC_APP ->
-                Intent(view).setPackage(step.packageName ?: return fail("no target app set"))
-            UrlTarget.DEFAULT_BROWSER -> view
-            UrlTarget.CHOOSER ->
-                Intent.createChooser(view, "Open with").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-        }
-        return try {
-            context.startActivity(intent)
-            ok()
-        } catch (e: ActivityNotFoundException) {
-            // The chosen app can't open it — fall back to the default browser so
-            // the run keeps going, and say what happened.
-            if (step.target == UrlTarget.GOOGLE_APP || step.target == UrlTarget.SPECIFIC_APP) {
-                try {
-                    context.startActivity(view)
-                    return fail("target app couldn't open the URL; used the default browser instead")
-                } catch (_: ActivityNotFoundException) {
-                }
+        // Ordered, redundant openers: the preferred one first, then progressively
+        // broader fallbacks. ANY successful open counts as success so the run
+        // continues — the point is to get the page on screen, not to insist on
+        // one specific app.
+        val attempts = LinkedHashMap<String, Intent>()
+
+        fun view() = Intent(Intent.ACTION_VIEW, uri).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+
+        when (step.target) {
+            UrlTarget.GOOGLE_APP -> attempts["Google app"] = view().setPackage(GOOGLE_APP_PACKAGE)
+            UrlTarget.SPECIFIC_APP -> step.packageName?.let {
+                attempts["$it"] = view().setPackage(it)
             }
-            fail("no app can open $uri")
+            UrlTarget.DEFAULT_BROWSER -> {} // default handled below
+            UrlTarget.CHOOSER -> attempts["chooser"] =
+                Intent.createChooser(view(), "Open with").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         }
+
+        // Redundant fallbacks (kept non-Chrome-first to honour "not Chrome").
+        nonChromeBrowser(uri)?.let { (label, intent) -> attempts.putIfAbsent(label, intent) }
+        attempts.putIfAbsent("default browser", view())
+        attempts.putIfAbsent(
+            "chooser",
+            Intent.createChooser(view(), "Open with").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+        )
+
+        for ((label, intent) in attempts) {
+            if (tryStart(intent)) return ok("opened via $label")
+        }
+        return fail("no installed app can open $uri")
+    }
+
+    private fun tryStart(intent: Intent): Boolean = try {
+        context.startActivity(intent)
+        true
+    } catch (e: ActivityNotFoundException) {
+        false
+    } catch (e: Exception) {
+        false
+    }
+
+    /** First installed browser that isn't Chrome, as a labelled VIEW intent. */
+    private fun nonChromeBrowser(uri: Uri): Pair<String, Intent>? {
+        val pm = context.packageManager
+        val probe = Intent(Intent.ACTION_VIEW, Uri.parse("http://example.com"))
+        val pkg = pm.queryIntentActivities(probe, 0)
+            .mapNotNull { it.activityInfo?.packageName }
+            .distinct()
+            .firstOrNull { !it.contains("chrome", ignoreCase = true) }
+            ?: return null
+        val intent = Intent(Intent.ACTION_VIEW, uri)
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            .setPackage(pkg)
+        return pkg to intent
     }
 
     private fun webSearch(step: Step.WebSearch): StepResult {
@@ -274,7 +304,7 @@ class AutomationEngine(
         return block(svc)
     }
 
-    private fun ok() = StepResult(true, "ok")
+    private fun ok(message: String = "ok") = StepResult(true, message)
     private fun fail(reason: String) = StepResult(false, reason)
 
     private companion object {
