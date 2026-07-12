@@ -2,6 +2,11 @@ package com.legal.automation.service
 
 import android.accessibilityservice.AccessibilityService
 import android.accessibilityservice.GestureDescription
+import android.app.PendingIntent
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
 import android.graphics.Bitmap
 import android.graphics.Path
 import android.graphics.Rect
@@ -10,6 +15,11 @@ import android.util.DisplayMetrics
 import android.view.WindowManager
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
+import androidx.core.app.NotificationCompat
+import androidx.core.app.NotificationManagerCompat
+import androidx.core.content.ContextCompat
+import com.legal.automation.App
+import com.legal.automation.engine.AlertManager
 import com.legal.automation.model.ScrollDirection
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.suspendCancellableCoroutine
@@ -33,26 +43,81 @@ class AutomationAccessibilityService : AccessibilityService() {
             private set
 
         val isRunning: Boolean get() = instance != null
+
+        private const val ACTION_SCAN = "com.legal.automation.action.SCAN_SCREEN"
+        private const val CONTROL_NOTIF_ID = 7
+    }
+
+    // Fired from the ongoing notification's "Scan screen" action: dumps every
+    // readable text/id on the current screen so you can see what the engine
+    // can (and can't) target — the key diagnostic for web pages.
+    private val scanReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            App.instance.alerts.showScreenDump(dumpScreenText())
+        }
     }
 
     override fun onServiceConnected() {
         super.onServiceConnected()
         instance = this
+        ContextCompat.registerReceiver(
+            this,
+            scanReceiver,
+            IntentFilter(ACTION_SCAN),
+            ContextCompat.RECEIVER_NOT_EXPORTED,
+        )
+        postControlNotification()
     }
 
-    override fun onUnbind(intent: android.content.Intent?): Boolean {
+    override fun onUnbind(intent: Intent?): Boolean {
         instance = null
         return super.onUnbind(intent)
     }
 
     override fun onDestroy() {
         instance = null
+        runCatching { unregisterReceiver(scanReceiver) }
+        runCatching { NotificationManagerCompat.from(this).cancel(CONTROL_NOTIF_ID) }
         super.onDestroy()
     }
 
     // We don't react to events; the engine polls the tree on demand.
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {}
     override fun onInterrupt() {}
+
+    private fun postControlNotification() {
+        val scan = PendingIntent.getBroadcast(
+            this,
+            0,
+            Intent(ACTION_SCAN).setPackage(packageName),
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
+        )
+        val notification = NotificationCompat.Builder(this, AlertManager.CHANNEL_RUNNER)
+            .setSmallIcon(android.R.drawable.ic_menu_view)
+            .setContentTitle("Automation engine active")
+            .setContentText("Tap “Scan screen” over any app to list its text & ids")
+            .addAction(android.R.drawable.ic_menu_search, "Scan screen", scan)
+            .setOngoing(true)
+            .setPriority(NotificationCompat.PRIORITY_LOW)
+            .build()
+        runCatching { NotificationManagerCompat.from(this).notify(CONTROL_NOTIF_ID, notification) }
+    }
+
+    /** Every text / contentDescription / view-id visible across all windows. */
+    fun dumpScreenText(): List<String> {
+        val out = LinkedHashSet<String>()
+        for (root in candidateRoots()) collectText(root, out)
+        return out.toList()
+    }
+
+    private fun collectText(node: AccessibilityNodeInfo?, out: MutableSet<String>) {
+        if (node == null) return
+        node.text?.toString()?.trim()?.takeIf { it.isNotEmpty() }?.let { out.add("“$it”") }
+        node.contentDescription?.toString()?.trim()?.takeIf { it.isNotEmpty() }
+            ?.let { out.add("desc: $it") }
+        node.viewIdResourceName?.takeIf { it.isNotBlank() }?.let { out.add("id: $it") }
+        for (i in 0 until node.childCount) collectText(node.getChild(i), out)
+    }
 
     // --- Finding -----------------------------------------------------------
 
