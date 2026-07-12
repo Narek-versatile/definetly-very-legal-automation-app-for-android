@@ -104,7 +104,11 @@ class AutomationStore(context: Context) {
                 target = UrlTarget.GOOGLE_APP,
             ),
             Step.WaitFor(text = "Minecraft Username", timeoutMs = 30000),
-            Step.InputText(text = "{username}", intoText = "Minecraft Username", retry = RetryPolicy(attempts = 3)),
+            Step.InputText(
+                text = "{username}",
+                intoText = "Minecraft Username",
+                retry = RetryPolicy(attempts = 6, backoffMs = 2000),
+            ),
             Step.HideKeyboard(),
             Step.SwipeSmall(down = true, pixels = 150),
             Step.TapText(text = "Vote!"),
@@ -128,7 +132,11 @@ class AutomationStore(context: Context) {
                 target = UrlTarget.GOOGLE_APP,
             ),
             Step.WaitFor(text = "Minecraft Username", timeoutMs = 30000),
-            Step.InputText(text = "{username}", intoId = "mc_username", retry = RetryPolicy(attempts = 3)),
+            Step.InputText(
+                text = "{username}",
+                intoId = "mc_username",
+                retry = RetryPolicy(attempts = 6, backoffMs = 2000),
+            ),
             Step.HideKeyboard(),
             Step.SwipeSmall(down = true, pixels = 150),
             Step.TapId(viewId = "vote-now"), // the submit button

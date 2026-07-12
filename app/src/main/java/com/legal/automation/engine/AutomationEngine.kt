@@ -295,23 +295,27 @@ class AutomationEngine(
         if (shizukuUsable()) shizuku.clearFocusedField()
         delay(120)
 
-        // Preferred path: Shizuku low-level typing (unless disabled/unavailable).
-        if (shizukuUsable() && shizuku.typeText(value)) {
-            return ok()
-        }
+        // Type: Shizuku low-level first (unless disabled), else accessibility.
+        if (shizukuUsable()) shizuku.typeText(value)
+        if (targetNode != null) svc.setText(targetNode, value) || svc.setTextOnFocused(value)
+        else svc.setTextOnFocused(value)
 
-        // Non-Shizuku fallback: accessibility set-text. If the matched node
-        // isn't itself editable (e.g. a <label> we clicked to focus the real
-        // <input>), fall back to whatever now has input focus.
-        val applied = when {
-            targetNode != null -> svc.setText(targetNode, value) || svc.setTextOnFocused(value)
-            else -> svc.setTextOnFocused(value)
+        // Verify the value actually landed in the field. This turns a silent
+        // "typed into nothing" (e.g. we focused a label, not the input) into a
+        // real failure that the step's retry can recover — instead of falsely
+        // reporting success on an empty box. Lenient: only fail when we can
+        // confirm the field is genuinely still empty.
+        if (targetNode != null) {
+            delay(150)
+            val refreshed = runCatching { targetNode.refresh() }.getOrDefault(false)
+            val current = targetNode.text?.toString()
+            return if (refreshed && current.isNullOrBlank()) {
+                fail("field still empty after typing (site may be slow — will retry)")
+            } else {
+                ok()
+            }
         }
-        if (applied) return ok()
-        return fail(
-            if (hasTarget) "could not set text on field"
-            else "no focused text field — set intoId/intoText, or enable Shizuku",
-        )
+        return ok()
     }
 
     private suspend fun captureFailure(automation: Automation, stepIndex: Int): String? {

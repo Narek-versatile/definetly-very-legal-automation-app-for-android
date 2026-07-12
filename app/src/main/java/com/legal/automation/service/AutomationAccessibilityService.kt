@@ -228,16 +228,52 @@ class AutomationAccessibilityService : AccessibilityService() {
         return clickNode(node)
     }
 
-    /** Focuses a field and returns it, so callers can then set/type text. */
+    /**
+     * Focuses a text field and returns the editable node, so callers can type
+     * into it. When targeting by text we deliberately prefer an actual editable
+     * input (matched via its placeholder/hint, or resolved from a nearby label)
+     * over the label itself — clicking a bare label doesn't reliably focus its
+     * input, which left fields empty on some sites.
+     */
     fun focusField(intoText: String?, intoId: String?): AccessibilityNodeInfo? {
-        val node = when {
+        val match = when {
             intoId != null -> findById(intoId)
-            intoText != null -> findByText(intoText, exact = false)
+            intoText != null -> findEditableByText(intoText) ?: findByText(intoText, exact = false)
             else -> null
         } ?: return null
-        node.performAction(AccessibilityNodeInfo.ACTION_FOCUS)
-        node.performAction(AccessibilityNodeInfo.ACTION_CLICK)
-        return node
+
+        val target = when {
+            match.isEditable -> match
+            else -> findNearbyEditable(match) ?: match
+        }
+        target.performAction(AccessibilityNodeInfo.ACTION_FOCUS)
+        target.performAction(AccessibilityNodeInfo.ACTION_CLICK)
+        return target
+    }
+
+    /** An editable node whose text/description/hint matches — i.e. the input,
+     *  not its label (placeholders show up as hintText/contentDescription). */
+    private fun findEditableByText(text: String): AccessibilityNodeInfo? = findFirst { node ->
+        if (!node.isEditable) return@findFirst false
+        val candidates = listOf(
+            node.text?.toString(),
+            node.contentDescription?.toString(),
+            node.hintText?.toString(),
+        )
+        candidates.any { it?.contains(text, ignoreCase = true) == true }
+    }
+
+    /** From a matched label/text node, find the closest editable field by
+     *  climbing a few ancestors and searching each subtree. */
+    private fun findNearbyEditable(node: AccessibilityNodeInfo): AccessibilityNodeInfo? {
+        var ancestor = node.parent
+        var hops = 0
+        while (ancestor != null && hops < 3) {
+            searchNode(ancestor, { it.isEditable }, 0)?.let { return it }
+            ancestor = ancestor.parent
+            hops++
+        }
+        return null
     }
 
     /** Accessibility fallback for typing when Shizuku is unavailable. */
