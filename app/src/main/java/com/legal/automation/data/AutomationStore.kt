@@ -140,7 +140,9 @@ class AutomationStore(context: Context) {
                 timeoutMs = 3000,
             ),
             Step.WaitFor(text = "Success", timeoutMs = 40000), // Turnstile gate
-            Step.TapText(text = "Vote"),
+            // The submit button's text is exactly "Vote " (trailing space) —
+            // exact match avoids the "Vote for…" heading / breadcrumb.
+            Step.TapText(text = "Vote ", exact = true),
             Step.Sleep(ms = 3000),
         ),
     )
@@ -160,26 +162,29 @@ class AutomationStore(context: Context) {
             Step.HideKeyboard(),
             Step.SwipeSmall(down = true, pixels = 150),
             Step.TapText(text = "Stem op deze server"),
-            Step.Sleep(ms = 3000),
+            // This site runs a countdown before the vote counts — wait it out
+            // before the run reports success.
+            Step.Sleep(ms = 10000),
         ),
     )
 
-    /** minecraft.buzz: page didn't expose its content to accessibility in the scan;
-     *  open it and let the user vote by hand until it can be automated. */
+    /** minecraft.buzz: the real vote form is at /vote/24 — input id="username-input",
+     *  submit id="submitter", no captcha. */
     private fun minecraftBuzzVote() = Automation(
         id = "seed-vote-7",
         name = "Vote 7: Minecraft.buzz",
-        description = "This site didn't expose its page to the automation engine yet, so this " +
-            "just opens it for you to vote manually. We'll automate it once we can read it.",
+        description = "Fills your {username} and taps Submit. No captcha.",
         steps = listOf(
             Step.OpenUrl(
-                url = "https://minecraft.buzz/server/24?tab=vote",
+                url = "https://minecraft.buzz/vote/24",
                 target = UrlTarget.GOOGLE_APP,
             ),
-            Step.ManualStep(
-                message = "Vote here by hand — this page can't be automated yet.",
-                timeoutMs = 20000,
-            ),
+            Step.WaitFor(text = "Minecraft Username", timeoutMs = 30000),
+            Step.InputText(text = "{username}", intoId = "username-input", retry = RetryPolicy(attempts = 6, backoffMs = 2000)),
+            Step.HideKeyboard(),
+            Step.SwipeSmall(down = true, pixels = 150),
+            Step.TapId(viewId = "submitter"),
+            Step.Sleep(ms = 3000),
         ),
     )
 

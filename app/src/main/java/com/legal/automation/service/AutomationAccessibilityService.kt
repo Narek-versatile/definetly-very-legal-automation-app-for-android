@@ -219,13 +219,41 @@ class AutomationAccessibilityService : AccessibilityService() {
     // --- Acting ------------------------------------------------------------
 
     suspend fun clickText(text: String, exact: Boolean): Boolean {
-        val node = findByText(text, exact) ?: return false
+        // Prefer a node that's actually clickable (the button), not e.g. a
+        // matching heading/breadcrumb with the same word.
+        val node = findClickableByText(text, exact) ?: findByText(text, exact) ?: return false
         return clickNode(node)
     }
 
     suspend fun clickId(viewId: String): Boolean {
         val node = findById(viewId) ?: return false
         return clickNode(node)
+    }
+
+    private fun findClickableByText(text: String, exact: Boolean): AccessibilityNodeInfo? =
+        findFirst { node ->
+            val t = node.text?.toString()
+            val d = node.contentDescription?.toString()
+            val matches = if (exact) {
+                t == text || d == text
+            } else {
+                t?.contains(text, ignoreCase = true) == true ||
+                    d?.contains(text, ignoreCase = true) == true
+            }
+            matches && isClickableChain(node)
+        }
+
+    /** True if the node or a near ancestor is clickable (web buttons expose the
+     *  text on a child of the clickable element). */
+    private fun isClickableChain(node: AccessibilityNodeInfo): Boolean {
+        var n: AccessibilityNodeInfo? = node
+        var hops = 0
+        while (n != null && hops < 4) {
+            if (n.isClickable) return true
+            n = n.parent
+            hops++
+        }
+        return false
     }
 
     /**
@@ -302,17 +330,31 @@ class AutomationAccessibilityService : AccessibilityService() {
     }
 
     private suspend fun clickNode(node: AccessibilityNodeInfo): Boolean {
+        // Prefer a REAL gesture tap at the element's on-screen centre. For web
+        // buttons, accessibility ACTION_CLICK frequently reports success without
+        // firing the button's JavaScript, whereas a genuine touch does. Only
+        // fall back to ACTION_CLICK when the node has no usable on-screen bounds
+        // (e.g. off-screen / zero-size), where a coordinate tap can't work.
+        val metrics = displayMetrics()
+        fun onScreen(b: Rect) = b.width() > 0 && b.height() > 0 &&
+            b.centerX() in 1 until metrics.widthPixels &&
+            b.centerY() in 1 until metrics.heightPixels
+
+        var bounds = Rect().also { node.getBoundsInScreen(it) }
+        if (!onScreen(bounds)) {
+            // Button below the fold: scroll it into view, then re-read bounds.
+            runCatching { node.performAction(AccessibilityNodeInfo.ACTION_SHOW_ON_SCREEN) }
+            delay(350)
+            runCatching { node.refresh() }
+            bounds = Rect().also { node.getBoundsInScreen(it) }
+        }
+        if (onScreen(bounds) && tap(bounds.centerX(), bounds.centerY())) return true
+
         var target: AccessibilityNodeInfo? = node
         while (target != null && !target.isClickable) {
             target = target.parent
         }
-        if (target != null && target.performAction(AccessibilityNodeInfo.ACTION_CLICK)) {
-            return true
-        }
-        // Fall back to a gesture tap at the node's centre.
-        val bounds = Rect().also { node.getBoundsInScreen(it) }
-        if (bounds.width() <= 0 || bounds.height() <= 0) return false
-        return tap(bounds.centerX(), bounds.centerY())
+        return target?.performAction(AccessibilityNodeInfo.ACTION_CLICK) == true
     }
 
     suspend fun tap(x: Int, y: Int): Boolean {
