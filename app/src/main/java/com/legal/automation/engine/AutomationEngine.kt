@@ -5,6 +5,7 @@ import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import com.legal.automation.App
 import com.legal.automation.data.SettingsStore
 import com.legal.automation.model.Automation
 import com.legal.automation.model.Step
@@ -78,6 +79,10 @@ class AutomationEngine(
             if (!result.success) {
                 success = false
                 failureScreenshot = captureFailure(automation, index)
+                // Also dump everything the engine could read at the point of
+                // failure and save it to Scans — makes "why didn't it find X?"
+                // answerable without the manual scan dance.
+                captureFailureScan(automation, index, step)
                 alerts.alertFailure(
                     automationName = automation.name,
                     stepDescription = "Step ${index + 1}: ${step.describe()} — ${result.message}",
@@ -299,6 +304,13 @@ class AutomationEngine(
         )
         val captured = runCatching { svc.screenshotTo(file) }.getOrDefault(false)
         return if (captured) file.absolutePath else null
+    }
+
+    private suspend fun captureFailureScan(automation: Automation, stepIndex: Int, step: Step) {
+        val svc = service ?: return
+        val texts = runCatching { svc.dumpScreenText() }.getOrDefault(emptyList())
+        val label = "${automation.name} · step ${stepIndex + 1} (${step.describe()})"
+        runCatching { App.instance.scans.add(label, texts) }
     }
 
     private inline fun requireService(block: (AutomationAccessibilityService) -> StepResult): StepResult {
