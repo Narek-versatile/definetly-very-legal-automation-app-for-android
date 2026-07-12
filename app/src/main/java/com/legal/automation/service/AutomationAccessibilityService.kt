@@ -344,6 +344,26 @@ class AutomationAccessibilityService : AccessibilityService() {
         }
     }
 
+    /**
+     * Ensures a checkbox is [desired]; only clicks it when it isn't already,
+     * so an already-remembered tick isn't toggled off. Returns false when the
+     * target isn't found.
+     */
+    suspend fun ensureChecked(
+        viewId: String?,
+        text: String?,
+        desired: Boolean,
+        realTapFirst: Boolean,
+    ): Boolean {
+        val node = when {
+            viewId != null -> findById(viewId)
+            text != null -> findByText(text, exact = false)
+            else -> null
+        } ?: return false
+        if (node.isChecked != desired) clickNode(node, realTapFirst)
+        return true
+    }
+
     private fun actionClickOn(node: AccessibilityNodeInfo): Boolean {
         var target: AccessibilityNodeInfo? = node
         while (target != null && !target.isClickable) target = target.parent

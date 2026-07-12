@@ -180,6 +180,43 @@ sealed class Step {
         override fun describe() = "Google search “$query”"
     }
 
+    /**
+     * Tick (or untick) a checkbox only if it isn't already in that state —
+     * avoids toggling a box the site already remembered (e.g. a privacy-policy
+     * agreement). Targets by [viewId] or visible [text].
+     */
+    @Serializable
+    @SerialName("ensure_checked")
+    data class EnsureChecked(
+        val viewId: String? = null,
+        val text: String? = null,
+        val checked: Boolean = true,
+        override val retry: RetryPolicy = RetryPolicy(attempts = 2),
+    ) : Step() {
+        override fun describe() =
+            "Ensure ${if (checked) "checked" else "unchecked"}: ${viewId ?: text ?: "?"}"
+    }
+
+    /**
+     * Tap a target and confirm it took effect. If [confirmText] is set, the tap
+     * is repeated (up to [attempts], waiting [gapMs] each) until that text
+     * appears; otherwise it's just tapped [attempts] times with [gapMs] gaps —
+     * a robust way to drive flaky web submit buttons.
+     */
+    @Serializable
+    @SerialName("tap_confirm")
+    data class TapAndConfirm(
+        val viewId: String? = null,
+        val text: String? = null,
+        val exact: Boolean = false,
+        val confirmText: String? = null,
+        val attempts: Int = 3,
+        val gapMs: Long = 4000,
+        override val retry: RetryPolicy = RetryPolicy(attempts = 1),
+    ) : Step() {
+        override fun describe() = "Tap & confirm ${viewId ?: text ?: "?"}"
+    }
+
     /** Close the on-screen keyboard (if open) so it stops covering buttons. */
     @Serializable
     @SerialName("hide_keyboard")

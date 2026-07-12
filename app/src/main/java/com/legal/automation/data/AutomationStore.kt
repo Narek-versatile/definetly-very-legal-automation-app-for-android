@@ -102,8 +102,8 @@ class AutomationStore(context: Context) {
             Step.WaitFor(text = "Vote for JartexNetwork", timeoutMs = 30000),
             Step.InputText(text = "{username}", intoId = "ignnn", retry = RetryPolicy(attempts = 6, backoffMs = 2000)),
             Step.HideKeyboard(),
-            Step.SwipeSmall(down = true, pixels = 150),
-            Step.TapId(viewId = "voteButton"),
+            // Inconsistent submit: re-tap a few times.
+            Step.TapAndConfirm(viewId = "voteButton", attempts = 3, gapMs = 4000),
             Step.ManualStep(
                 message = "If a reCAPTCHA challenge appears, solve it then wait. Usually invisible.",
                 timeoutMs = 15000,
@@ -132,8 +132,9 @@ class AutomationStore(context: Context) {
             // High retry to survive the Cloudflare interstitial before the form loads.
             Step.InputText(text = "{username}", intoId = "nickname", retry = RetryPolicy(attempts = 8, backoffMs = 3000)),
             Step.HideKeyboard(),
-            Step.TapId(viewId = "accept"), // tick "I agree"
-            Step.SwipeSmall(down = true, pixels = 150),
+            // Only tick "I agree" if it isn't already remembered as ticked —
+            // tapping a remembered tick would turn it OFF and break the vote.
+            Step.EnsureChecked(viewId = "accept", checked = true),
             Step.ManualStep(
                 message = "Complete the Cloudflare “I'm not a robot” check if shown. " +
                     "Voting waits until it's verified.",
@@ -160,7 +161,6 @@ class AutomationStore(context: Context) {
             Step.WaitFor(text = "MINECRAFT NAAM", timeoutMs = 30000),
             Step.InputText(text = "{username}", intoId = "minecraft_name", retry = RetryPolicy(attempts = 6, backoffMs = 2000)),
             Step.HideKeyboard(),
-            Step.SwipeSmall(down = true, pixels = 150),
             Step.TapText(text = "Stem op deze server"),
             // This site runs a countdown before the vote counts — wait it out
             // before the run reports success.
@@ -182,8 +182,8 @@ class AutomationStore(context: Context) {
             Step.WaitFor(text = "Minecraft Username", timeoutMs = 30000),
             Step.InputText(text = "{username}", intoId = "username-input", retry = RetryPolicy(attempts = 6, backoffMs = 2000)),
             Step.HideKeyboard(),
-            Step.SwipeSmall(down = true, pixels = 150),
-            Step.TapId(viewId = "submitter"),
+            // Submit didn't always register on the first tap — re-tap a few times.
+            Step.TapAndConfirm(viewId = "submitter", attempts = 3, gapMs = 5000),
             Step.Sleep(ms = 3000),
         ),
     )
@@ -206,7 +206,6 @@ class AutomationStore(context: Context) {
                 retry = RetryPolicy(attempts = 6, backoffMs = 2000),
             ),
             Step.HideKeyboard(),
-            Step.SwipeSmall(down = true, pixels = 150),
             Step.TapText(text = "Vote!"),
             Step.ManualStep(
                 message = "If a reCAPTCHA challenge appears, solve it then wait. Usually invisible.",
@@ -234,7 +233,6 @@ class AutomationStore(context: Context) {
                 retry = RetryPolicy(attempts = 6, backoffMs = 2000),
             ),
             Step.HideKeyboard(),
-            Step.SwipeSmall(down = true, pixels = 150),
             Step.ManualStep(
                 message = "Complete the Cloudflare “I'm not a robot” check if it's shown. " +
                     "Voting waits until it's verified.",
@@ -242,8 +240,9 @@ class AutomationStore(context: Context) {
             ),
             // Gate: don't submit until Cloudflare Turnstile reports success.
             Step.WaitFor(text = "Success", timeoutMs = 40000),
-            Step.TapId(viewId = "vote-now"), // the submit button
-            Step.Sleep(ms = 3000),
+            // Flaky React submit: re-tap a few times until it takes.
+            Step.TapAndConfirm(viewId = "vote-now", attempts = 3, gapMs = 4000),
+            Step.Sleep(ms = 10000), // countdown before the vote counts
         ),
     )
 
@@ -270,7 +269,6 @@ class AutomationStore(context: Context) {
                 retry = RetryPolicy(attempts = 6, backoffMs = 2500),
             ),
             Step.HideKeyboard(), // otherwise the keyboard eats the Vote tap
-            Step.SwipeSmall(down = true, pixels = 150),
             Step.TapId(viewId = "voteButton"),
             Step.ManualStep(
                 message = "If a reCAPTCHA / Cloudflare challenge appears, solve it then wait. " +

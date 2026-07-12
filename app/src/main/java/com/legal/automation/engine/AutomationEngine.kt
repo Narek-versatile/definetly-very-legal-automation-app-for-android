@@ -158,6 +158,16 @@ class AutomationEngine(
             }
         }
 
+        is Step.EnsureChecked -> requireService { svc ->
+            if (svc.ensureChecked(step.viewId, step.text, step.checked, settings.realTaps.value)) {
+                ok()
+            } else {
+                fail("checkbox not found: ${step.viewId ?: step.text}")
+            }
+        }
+
+        is Step.TapAndConfirm -> tapAndConfirm(step)
+
         is Step.HideKeyboard -> {
             service?.hideKeyboard() // best-effort; not finding a keyboard is fine
             delay(400)
@@ -272,6 +282,35 @@ class AutomationEngine(
             ok()
         } catch (t: Throwable) {
             fail("could not launch: ${t.message}")
+        }
+    }
+
+    private suspend fun tapAndConfirm(step: Step.TapAndConfirm): StepResult {
+        val svc = service ?: return fail("Accessibility service is not enabled")
+        val realTap = settings.realTaps.value
+        val confirm = step.confirmText?.let { resolve(it) }
+
+        suspend fun tapOnce(): Boolean = when {
+            step.viewId != null -> svc.clickId(step.viewId, realTap)
+            step.text != null -> svc.clickText(step.text, step.exact, realTap)
+            else -> false
+        }
+
+        repeat(step.attempts.coerceAtLeast(1)) {
+            val tapped = tapOnce()
+            if (confirm != null) {
+                // Re-tap until the confirmation text shows up.
+                if (svc.waitForText(confirm, step.gapMs)) return ok()
+            } else {
+                // No confirmation available: best-effort repeat-tapping.
+                if (!tapped && it == 0) return fail("target not found: ${step.viewId ?: step.text}")
+                delay(step.gapMs)
+            }
+        }
+        return if (confirm != null) {
+            fail("“$confirm” not shown after ${step.attempts} taps")
+        } else {
+            ok()
         }
     }
 
