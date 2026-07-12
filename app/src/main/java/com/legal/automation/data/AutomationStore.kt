@@ -89,16 +89,18 @@ class AutomationStore(context: Context) {
                 url = "https://topminecraftservers.org/vote/18687",
                 target = UrlTarget.GOOGLE_APP,
             ),
-            Step.WaitFor(text = "Minecraft Username", timeoutMs = 15000),
-            Step.TapText(text = "Minecraft Username"), // focuses the username field
-            Step.InputText(text = "{username}", retry = RetryPolicy(attempts = 2)),
-            Step.TapText(text = "Vote!"),
+            // Ad-heavy page + browser cold start: give the accessibility tree
+            // time to populate (it does — confirmed via a scan).
+            Step.WaitFor(text = "Minecraft Username", timeoutMs = 30000),
+            // Target the real web ids that Chrome exposes, not label text.
+            Step.InputText(text = "{username}", intoId = "username", retry = RetryPolicy(attempts = 2)),
+            Step.TapId(viewId = "voteButton"),
             Step.ManualStep(
                 message = "If a reCAPTCHA image challenge appears, solve it then wait. " +
                     "It's usually invisible, so often nothing to do.",
                 timeoutMs = 15000,
             ),
-            Step.Sleep(ms = 4000),
+            Step.Sleep(ms = 3000),
             Step.Verify(text = "hank", expectPresent = true), // "Thank you for voting"
         ),
     )

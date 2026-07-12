@@ -17,6 +17,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Error
@@ -50,8 +51,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -504,24 +507,34 @@ private fun ScansScreen(vm: MainViewModel, onBack: () -> Unit) {
 @Composable
 private fun ScanCard(scan: com.legal.automation.data.Scan) {
     var expanded by remember { mutableStateOf(false) }
+    val clipboard = LocalClipboardManager.current
+    val fullText = remember(scan) { scan.items.joinToString("\n") }
     Card {
-        Column(
-            Modifier
-                .fillMaxWidth()
-                .clickable { expanded = !expanded }
-                .padding(16.dp),
-        ) {
-            Text(scan.appLabel, style = MaterialTheme.typography.titleSmall)
-            Text(
-                "${formatTime(scan.createdAt)} · ${scan.items.size} items · tap to " +
-                    if (expanded) "collapse" else "expand",
-                style = MaterialTheme.typography.labelSmall,
-            )
+        Column(Modifier.fillMaxWidth().padding(16.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(
+                    Modifier
+                        .weight(1f)
+                        .clickable { expanded = !expanded },
+                ) {
+                    Text(scan.appLabel, style = MaterialTheme.typography.titleSmall)
+                    Text(
+                        "${formatTime(scan.createdAt)} · ${scan.items.size} items · tap to " +
+                            if (expanded) "collapse" else "expand",
+                        style = MaterialTheme.typography.labelSmall,
+                    )
+                }
+                TextButton(onClick = { clipboard.setText(AnnotatedString(fullText)) }) {
+                    Icon(Icons.Filled.ContentCopy, contentDescription = null)
+                    Spacer(Modifier.size(4.dp))
+                    Text("Copy")
+                }
+            }
             if (expanded) {
                 Spacer(Modifier.height(8.dp))
                 SelectionContainer {
                     Text(
-                        scan.items.joinToString("\n"),
+                        fullText,
                         style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
                     )
                 }
