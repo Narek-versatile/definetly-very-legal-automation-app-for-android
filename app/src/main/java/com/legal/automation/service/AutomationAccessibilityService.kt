@@ -11,6 +11,8 @@ import android.graphics.Bitmap
 import android.graphics.Path
 import android.graphics.Rect
 import android.os.Build
+import android.os.Handler
+import android.os.Looper
 import android.util.DisplayMetrics
 import android.view.WindowManager
 import android.view.accessibility.AccessibilityEvent
@@ -22,6 +24,7 @@ import com.legal.automation.App
 import com.legal.automation.engine.AlertManager
 import com.legal.automation.model.ScrollDirection
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
 import java.io.File
 import java.io.FileOutputStream
@@ -50,12 +53,30 @@ class AutomationAccessibilityService : AccessibilityService() {
 
     // Fired from the ongoing notification's "Scan screen" action: dumps every
     // readable text/id on the current screen so you can see what the engine
-    // can (and can't) target — the key diagnostic for web pages.
+    // can (and can't) target — the key diagnostic for web pages. We collapse
+    // the notification shade first and wait a beat, otherwise the scan just
+    // reads the shade/System UI instead of the app underneath.
     private val scanReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
-            App.instance.alerts.showScreenDump(dumpScreenText())
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                runCatching { performGlobalAction(GLOBAL_ACTION_DISMISS_NOTIFICATION_SHADE) }
+            }
+            Handler(Looper.getMainLooper()).postDelayed({ performScan() }, 1800)
         }
     }
+
+    private fun performScan() {
+        val items = dumpScreenText()
+        val pkg = rootInActiveWindow?.packageName?.toString() ?: "screen"
+        val label = appLabelFor(pkg)
+        App.instance.applicationScope.launch { App.instance.scans.add(label, items) }
+        App.instance.alerts.showScreenDump(label, items)
+    }
+
+    private fun appLabelFor(pkg: String): String = runCatching {
+        val pm = packageManager
+        pm.getApplicationLabel(pm.getApplicationInfo(pkg, 0)).toString()
+    }.getOrDefault(pkg)
 
     override fun onServiceConnected() {
         super.onServiceConnected()

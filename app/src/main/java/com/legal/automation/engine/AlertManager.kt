@@ -71,18 +71,19 @@ class AlertManager(private val context: Context) {
         vibrate()
     }
 
-    fun showScreenDump(items: List<String>) {
+    fun showScreenDump(appLabel: String, items: List<String>) {
         val body = if (items.isEmpty()) {
-            "No readable text found on this screen. The app is hiding its content " +
-                "from accessibility, so text/id targeting can't work here — this page " +
-                "needs a coordinate tap or a different app/browser."
+            "No readable text found on “$appLabel”. It hides its content from " +
+                "accessibility, so text/id targeting can't work here — this page needs " +
+                "a coordinate tap or a different app/browser."
         } else {
-            items.joinToString("\n").take(4800)
+            "Saved to Scans (open the app → Scans to read all of it).\n\n" +
+                items.joinToString("\n").take(4500)
         }
         val builder = NotificationCompat.Builder(context, CHANNEL_ALERTS)
             .setSmallIcon(android.R.drawable.ic_menu_search)
-            .setContentTitle("Screen text (${items.size} items)")
-            .setContentText("Everything the engine can read right now")
+            .setContentTitle("Scanned “$appLabel” (${items.size} items)")
+            .setContentText("Saved to Scans in the app")
             .setStyle(NotificationCompat.BigTextStyle().bigText(body))
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)
             .setAutoCancel(true)

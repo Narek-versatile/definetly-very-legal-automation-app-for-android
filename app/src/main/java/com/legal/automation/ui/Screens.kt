@@ -9,8 +9,10 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
@@ -20,6 +22,7 @@ import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Error
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Receipt
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -49,6 +52,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
@@ -64,6 +68,7 @@ private sealed interface Screen {
     data object Home : Screen
     data class Edit(val automation: Automation) : Screen
     data object Logs : Screen
+    data object Scans : Screen
 }
 
 @Composable
@@ -77,6 +82,7 @@ fun AppRoot(vm: MainViewModel) {
                 screen = Screen.Edit(Automation(name = "New automation"))
             },
             onLogs = { screen = Screen.Logs },
+            onScans = { screen = Screen.Scans },
         )
 
         is Screen.Edit -> EditorScreen(
@@ -86,6 +92,7 @@ fun AppRoot(vm: MainViewModel) {
         )
 
         Screen.Logs -> LogsScreen(vm = vm, onBack = { screen = Screen.Home })
+        Screen.Scans -> ScansScreen(vm = vm, onBack = { screen = Screen.Home })
     }
 }
 
@@ -98,6 +105,7 @@ private fun HomeScreen(
     onEdit: (Automation) -> Unit,
     onNew: () -> Unit,
     onLogs: () -> Unit,
+    onScans: () -> Unit,
 ) {
     val automations by vm.automations.collectAsState()
     val runState by AutomationRunState.state.collectAsState()
@@ -112,6 +120,9 @@ private fun HomeScreen(
             TopAppBar(
                 title = { Text("Legal Automation") },
                 actions = {
+                    IconButton(onClick = onScans) {
+                        Icon(Icons.Filled.Search, contentDescription = "Screen scans")
+                    }
                     IconButton(onClick = onLogs) {
                         Icon(Icons.Filled.Receipt, contentDescription = "Run logs")
                     }
@@ -442,6 +453,79 @@ private fun LogsScreen(vm: MainViewModel, onBack: () -> Unit) {
                 }
             }
             item { Spacer(Modifier.height(40.dp)) }
+        }
+    }
+}
+
+// --- Scans -------------------------------------------------------------------
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ScansScreen(vm: MainViewModel, onBack: () -> Unit) {
+    val scans by vm.scans.collectAsState()
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("Screen scans") },
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                    }
+                },
+            )
+        },
+    ) { padding ->
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .padding(horizontal = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            item { Spacer(Modifier.height(4.dp)) }
+            if (scans.isEmpty()) {
+                item {
+                    Text(
+                        "No scans yet. With this app's accessibility service on, open any app, " +
+                            "pull down the notification shade and tap “Scan screen”. The full " +
+                            "text/ids show up here.",
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                }
+            }
+            items(scans, key = { it.id }) { scan ->
+                ScanCard(scan)
+            }
+            item { Spacer(Modifier.height(40.dp)) }
+        }
+    }
+}
+
+@Composable
+private fun ScanCard(scan: com.legal.automation.data.Scan) {
+    var expanded by remember { mutableStateOf(false) }
+    Card {
+        Column(
+            Modifier
+                .fillMaxWidth()
+                .clickable { expanded = !expanded }
+                .padding(16.dp),
+        ) {
+            Text(scan.appLabel, style = MaterialTheme.typography.titleSmall)
+            Text(
+                "${formatTime(scan.createdAt)} · ${scan.items.size} items · tap to " +
+                    if (expanded) "collapse" else "expand",
+                style = MaterialTheme.typography.labelSmall,
+            )
+            if (expanded) {
+                Spacer(Modifier.height(8.dp))
+                SelectionContainer {
+                    Text(
+                        scan.items.joinToString("\n"),
+                        style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
+                    )
+                }
+            }
         }
     }
 }

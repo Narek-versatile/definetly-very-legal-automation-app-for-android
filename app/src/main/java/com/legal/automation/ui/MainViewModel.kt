@@ -14,6 +14,7 @@ class MainViewModel(private val app: App) : ViewModel() {
 
     val automations = app.store.automations
     val logs = app.logs.logs
+    val scans = app.scans.scans
     val shizukuStatus = ShizukuManager.status
     val useShizuku = app.settings.useShizuku
     val username = app.settings.username
@@ -21,6 +22,7 @@ class MainViewModel(private val app: App) : ViewModel() {
     init {
         viewModelScope.launch { app.store.load() }
         viewModelScope.launch { app.logs.load() }
+        viewModelScope.launch { app.scans.load() }
     }
 
     fun refreshShizuku() = ShizukuManager.refreshStatus()
