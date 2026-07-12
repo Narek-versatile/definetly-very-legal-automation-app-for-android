@@ -152,18 +152,35 @@ class AutomationStore(context: Context) {
         ),
     )
 
-    /** minecraft-mp.com: Cloudflare + Turnstile, input id="nickname", id="accept" box, button "Vote". */
+    /** minecraft-mp.com: Cloudflare + Turnstile, input id="nickname", id="accept" box, button "Vote".
+     *  The captcha fails ("Captcha data missing") when the site's third-party
+     *  cookies get into a bad state, so we clear this site's stored data via
+     *  Chrome's page-info sheet and reload before voting. */
     private fun minecraftMpVote() = Automation(
         id = "seed-vote-5",
         name = "Vote 5: Minecraft-MP",
-        description = "Fills your {username}, ticks the agree box (only if needed), waits for the " +
-            "Cloudflare check, then taps Vote. The fussiest site — re-run if a step fails.",
+        description = "Clears the site's stored data (fixes the captcha), reloads, fills your " +
+            "{username}, ticks the agree box only if needed, waits for the Cloudflare check, then " +
+            "votes. Chrome-specific — if a settings step fails, scan that screen and tell me.",
         steps = listOf(
             Step.OpenUrl(url = "https://minecraft-mp.com/server/52462/vote/", target = UrlTarget.GOOGLE_APP),
-            // High retry to ride out the Cloudflare interstitial before the form loads.
+            Step.Sleep(ms = 3500), // let the page (and its error) load
+
+            // --- Clear this site's cookies/data via Chrome's page-info sheet ---
+            Step.TapText(text = "Connection is secure"), // the padlock in the address bar
+            Step.Sleep(ms = 1500),
+            Step.TapText(text = "Cookies and site data"),
+            Step.Sleep(ms = 1500),
+            Step.TapText(text = "Delete"), // the trash / delete-data control
+            Step.Sleep(ms = 1200),
+            Step.TapText(text = "Delete"), // confirm the "Delete cookies?" dialog
+            Step.Sleep(ms = 1500),
+            // Reload the page now that data is cleared.
+            Step.OpenUrl(url = "https://minecraft-mp.com/server/52462/vote/", target = UrlTarget.GOOGLE_APP),
+
+            // --- Vote ---
             Step.InputText(text = "{username}", intoId = "nickname", retry = RetryPolicy(attempts = 8, backoffMs = 3000)),
             Step.HideKeyboard(),
-            // Tick "I agree" only if it isn't already remembered as ticked.
             Step.EnsureChecked(viewId = "accept", checked = true),
             Step.WaitFor(text = "Success", timeoutMs = 40000), // Turnstile gate
             Step.TapAndConfirm(text = "Vote", attempts = 3, gapMs = 4000),
