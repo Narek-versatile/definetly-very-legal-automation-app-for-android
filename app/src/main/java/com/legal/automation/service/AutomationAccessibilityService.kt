@@ -343,7 +343,9 @@ class AutomationAccessibilityService : AccessibilityService() {
         var bounds = Rect().also { node.getBoundsInScreen(it) }
         if (!onScreen(bounds)) {
             // Button below the fold: scroll it into view, then re-read bounds.
-            runCatching { node.performAction(AccessibilityNodeInfo.ACTION_SHOW_ON_SCREEN) }
+            runCatching {
+                node.performAction(AccessibilityNodeInfo.AccessibilityAction.ACTION_SHOW_ON_SCREEN.id)
+            }
             delay(350)
             runCatching { node.refresh() }
             bounds = Rect().also { node.getBoundsInScreen(it) }
