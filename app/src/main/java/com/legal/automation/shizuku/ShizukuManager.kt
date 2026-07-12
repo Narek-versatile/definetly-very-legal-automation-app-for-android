@@ -146,6 +146,18 @@ object ShizukuManager {
         return !out.startsWith("ERROR")
     }
 
+    /**
+     * Clears the currently focused text field: jump to the end, then send a
+     * generous run of backspaces. Real key events, so sites that watch input
+     * (React etc.) update correctly. Extra backspaces on an empty field are
+     * harmless. 123 = MOVE_END, 67 = DEL (backspace).
+     */
+    suspend fun clearFocusedField(): Boolean {
+        val backspaces = (1..64).joinToString(" ") { "67" }
+        val out = exec("input keyevent 123 $backspaces") ?: return false
+        return !out.startsWith("ERROR")
+    }
+
     fun unbind() {
         runCatching { Shizuku.unbindUserService(userServiceArgs, connection, true) }
         userService = null

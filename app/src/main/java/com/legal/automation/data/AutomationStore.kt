@@ -63,20 +63,60 @@ class AutomationStore(context: Context) {
      * best-effort defaults — tweak per site in the editor after seeing the page.
      */
     private fun sampleAutomations(): List<Automation> {
-        // Site 1 is tuned to the real page (label "Minecraft Username", button
-        // "Vote!", invisible reCAPTCHA). The rest use a generic template until
-        // each is dialed in the same way.
+        // Sites 1-3 are tuned to their real pages (confirmed via screen scans).
+        // The rest use a generic template until each is dialed in the same way.
         val rest = listOf(
-            "Best-Minecraft-Servers" to "https://best-minecraft-servers.co/server-jartexnetwork.4402/vote",
-            "MineRank" to "https://www.minerank.com/jartexnetwork/vote",
             "Minecraft-Server-List" to "https://minecraft-server-list.com/server/288369/vote/",
             "Minecraft-MP" to "https://minecraft-mp.com/server/52462/vote/",
             "MinecraftKrant" to "https://minecraftkrant.nl/server/jartexnetwork/vote",
             "Minecraft.buzz" to "https://minecraft.buzz/server/24&tab=vote",
         )
-        return listOf(topMinecraftServersVote()) +
-            rest.mapIndexed { index, (label, url) -> voteAutomation(index + 2, label, url) }
+        return listOf(topMinecraftServersVote(), bestMinecraftServersVote(), minerankVote()) +
+            rest.mapIndexed { index, (label, url) -> voteAutomation(index + 4, label, url) }
     }
+
+    /** best-minecraft-servers.co: input name="username", button "Vote!". */
+    private fun bestMinecraftServersVote() = Automation(
+        name = "Vote 2: Best-Minecraft-Servers",
+        description = "Opens the vote page, fills your {username}, taps Vote!, then pauses " +
+            "for any captcha. Set your username in Settings.",
+        steps = listOf(
+            Step.OpenUrl(
+                url = "https://best-minecraft-servers.co/server-jartexnetwork.4402/vote",
+                target = UrlTarget.GOOGLE_APP,
+            ),
+            Step.WaitFor(text = "Minecraft Username", timeoutMs = 30000),
+            Step.InputText(text = "{username}", intoText = "Minecraft Username", retry = RetryPolicy(attempts = 2)),
+            Step.TapText(text = "Vote!"),
+            Step.ManualStep(
+                message = "If a reCAPTCHA challenge appears, solve it then wait. Usually invisible.",
+                timeoutMs = 15000,
+            ),
+            Step.Sleep(ms = 3000),
+        ),
+    )
+
+    /** minerank.com: input id="mc_username", submit "Send Vote", Cloudflare Turnstile. */
+    private fun minerankVote() = Automation(
+        name = "Vote 3: MineRank",
+        description = "Opens the vote page, fills your {username} (case-sensitive!), taps " +
+            "Send Vote, then pauses for the Cloudflare check. Set your username in Settings.",
+        steps = listOf(
+            Step.OpenUrl(
+                url = "https://www.minerank.com/jartexnetwork/vote",
+                target = UrlTarget.GOOGLE_APP,
+            ),
+            Step.WaitFor(text = "Minecraft Username", timeoutMs = 30000),
+            Step.InputText(text = "{username}", intoId = "mc_username", retry = RetryPolicy(attempts = 2)),
+            Step.TapText(text = "Send Vote"),
+            Step.ManualStep(
+                message = "If the Cloudflare check needs you, complete it then wait. " +
+                    "Usually it passes on its own.",
+                timeoutMs = 15000,
+            ),
+            Step.Sleep(ms = 3000),
+        ),
+    )
 
     /** Perfected flow for topminecraftservers.org/vote/18687. */
     private fun topMinecraftServersVote() = Automation(

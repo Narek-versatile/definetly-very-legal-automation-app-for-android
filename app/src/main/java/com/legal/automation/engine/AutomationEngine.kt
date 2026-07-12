@@ -277,6 +277,14 @@ class AutomationEngine(
             null
         }
 
+        // Clear whatever is already in the box so we replace it instead of
+        // appending to a leftover value. Do both: accessibility set-text to ""
+        // (clears the DOM value) and a Shizuku key-event clear (fires real
+        // input events for sites that need them).
+        if (targetNode != null) runCatching { svc.setText(targetNode, "") }
+        if (shizukuUsable()) shizuku.clearFocusedField()
+        delay(120)
+
         // Preferred path: Shizuku low-level typing (unless disabled/unavailable).
         if (shizukuUsable() && shizuku.typeText(value)) {
             return ok()
