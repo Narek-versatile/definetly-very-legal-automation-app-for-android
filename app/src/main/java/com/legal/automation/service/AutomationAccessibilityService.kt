@@ -160,30 +160,51 @@ class AutomationAccessibilityService : AccessibilityService() {
         return roots
     }
 
-    fun findByText(text: String, exact: Boolean): AccessibilityNodeInfo? {
+    /**
+     * Depth-first walk over every candidate root, returning the first node the
+     * predicate accepts. We walk children by hand instead of using
+     * findAccessibilityNodeInfos*byText/ViewId because those framework search
+     * APIs do NOT reliably descend into Chrome's web-content virtual tree —
+     * the manual walk (same one the screen scan uses) does, so it finds text
+     * and ids inside web pages.
+     */
+    private fun findFirst(match: (AccessibilityNodeInfo) -> Boolean): AccessibilityNodeInfo? {
         for (root in candidateRoots()) {
-            val matches = root.findAccessibilityNodeInfosByText(text) ?: continue
-            val hit = if (exact) {
-                matches.firstOrNull {
-                    it.text?.toString() == text || it.contentDescription?.toString() == text
-                }
-            } else {
-                matches.firstOrNull()
-            }
-            if (hit != null) return hit
+            searchNode(root, match, 0)?.let { return it }
         }
         return null
     }
 
-    fun findById(viewId: String): AccessibilityNodeInfo? {
-        for (root in candidateRoots()) {
-            root.findAccessibilityNodeInfosByViewId(viewId)?.firstOrNull()?.let { return it }
+    private fun searchNode(
+        node: AccessibilityNodeInfo?,
+        match: (AccessibilityNodeInfo) -> Boolean,
+        depth: Int,
+    ): AccessibilityNodeInfo? {
+        if (node == null || depth > 80) return null
+        if (runCatching { match(node) }.getOrDefault(false)) return node
+        for (i in 0 until node.childCount) {
+            searchNode(node.getChild(i), match, depth + 1)?.let { return it }
         }
         return null
     }
 
-    fun isTextPresent(text: String): Boolean =
-        candidateRoots().any { (it.findAccessibilityNodeInfosByText(text)?.isNotEmpty()) == true }
+    fun findByText(text: String, exact: Boolean): AccessibilityNodeInfo? = findFirst { node ->
+        val t = node.text?.toString()
+        val d = node.contentDescription?.toString()
+        if (exact) {
+            t == text || d == text
+        } else {
+            t?.contains(text, ignoreCase = true) == true ||
+                d?.contains(text, ignoreCase = true) == true
+        }
+    }
+
+    fun findById(viewId: String): AccessibilityNodeInfo? = findFirst { node ->
+        val id = node.viewIdResourceName
+        id == viewId || id?.endsWith("/$viewId") == true
+    }
+
+    fun isTextPresent(text: String): Boolean = findByText(text, exact = false) != null
 
     suspend fun waitForText(text: String, timeoutMs: Long): Boolean {
         val deadline = System.currentTimeMillis() + timeoutMs
