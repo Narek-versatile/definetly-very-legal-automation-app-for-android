@@ -180,6 +180,26 @@ sealed class Step {
         override fun describe() = "Google search “$query”"
     }
 
+    /** Close the on-screen keyboard (if open) so it stops covering buttons. */
+    @Serializable
+    @SerialName("hide_keyboard")
+    data class HideKeyboard(
+        override val retry: RetryPolicy = RetryPolicy(attempts = 1),
+    ) : Step() {
+        override fun describe() = "Hide keyboard"
+    }
+
+    /** A small swipe (mostly to reveal what's below the fold / for visibility). */
+    @Serializable
+    @SerialName("swipe")
+    data class SwipeSmall(
+        val down: Boolean = true,
+        val pixels: Int = 200,
+        override val retry: RetryPolicy = RetryPolicy(attempts = 1),
+    ) : Step() {
+        override fun describe() = "Swipe ${if (down) "down" else "up"} ${pixels}px"
+    }
+
     /**
      * Pause and alert the user to do something by hand (e.g. solve a captcha),
      * then wait [timeoutMs] before continuing. Used in flows the app can't

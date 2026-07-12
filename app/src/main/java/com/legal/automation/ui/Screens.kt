@@ -177,11 +177,17 @@ private fun HomeScreen(
             }
 
             item {
-                Text(
-                    "Automations",
-                    style = MaterialTheme.typography.titleMedium,
-                    modifier = Modifier.padding(top = 8.dp),
-                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        "Automations",
+                        style = MaterialTheme.typography.titleMedium,
+                        modifier = Modifier.padding(top = 8.dp),
+                    )
+                    Spacer(Modifier.weight(1f))
+                    TextButton(onClick = { vm.reloadBuiltIns() }) {
+                        Text("Reload built-in votes")
+                    }
+                }
             }
 
             if (automations.isEmpty()) {

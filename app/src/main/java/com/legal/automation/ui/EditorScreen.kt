@@ -226,6 +226,8 @@ private enum class StepType(val label: String) {
     TAP_TEXT("Tap text"),
     TAP_ID("Tap id"),
     INPUT_TEXT("Type text"),
+    HIDE_KEYBOARD("Hide keyboard"),
+    SWIPE("Swipe"),
     MANUAL_STEP("Manual step (captcha)"),
     SCROLL("Scroll"),
     WAIT_FOR("Wait for text"),
@@ -275,6 +277,8 @@ private fun AddStepDialog(
         StepType.INPUT_TEXT -> f1.ifBlank { null }?.let {
             Step.InputText(text = it, intoText = f2.ifBlank { null }?.trim())
         }
+        StepType.HIDE_KEYBOARD -> Step.HideKeyboard()
+        StepType.SWIPE -> Step.SwipeSmall(pixels = f1.toIntOrNull() ?: 200)
         StepType.SCROLL -> Step.Scroll(direction = scroll)
         StepType.WAIT_FOR -> f1.ifBlank { null }?.let {
             Step.WaitFor(text = it, timeoutMs = f2.toLongOrNull() ?: 8000)
@@ -357,6 +361,8 @@ private fun AddStepDialog(
                         Field("Text to type (use {username})", f1) { f1 = it }
                         Field("Into field label (optional)", f2) { f2 = it }
                     }
+                    StepType.HIDE_KEYBOARD -> Text("Closes the on-screen keyboard if it's open.")
+                    StepType.SWIPE -> Field("Pixels (down)", f1) { f1 = it }
                     StepType.SLEEP -> Field("Milliseconds", f1) { f1 = it }
                     StepType.TAP_XY -> {
                         Field("X", f1) { f1 = it }

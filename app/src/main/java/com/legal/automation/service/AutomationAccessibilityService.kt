@@ -17,6 +17,7 @@ import android.util.DisplayMetrics
 import android.view.WindowManager
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
+import android.view.accessibility.AccessibilityWindowInfo
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
@@ -281,6 +282,31 @@ class AutomationAccessibilityService : AccessibilityService() {
     suspend fun tap(x: Int, y: Int): Boolean {
         val path = Path().apply { moveTo(x.toFloat(), y.toFloat()) }
         val stroke = GestureDescription.StrokeDescription(path, 0, 60)
+        return dispatchAwait(GestureDescription.Builder().addStroke(stroke).build())
+    }
+
+    /** Closes the soft keyboard, but only if one is actually showing (so the
+     *  Back action can't accidentally navigate the page back). */
+    fun hideKeyboard(): Boolean {
+        val imeOpen = runCatching {
+            windows?.any { it.type == AccessibilityWindowInfo.TYPE_INPUT_METHOD } == true
+        }.getOrDefault(false)
+        return if (imeOpen) performGlobalAction(GLOBAL_ACTION_BACK) else false
+    }
+
+    /** A short vertical swipe by [pixels] from screen centre. */
+    suspend fun swipeSmall(down: Boolean, pixels: Int): Boolean {
+        val metrics = displayMetrics()
+        val cx = metrics.widthPixels / 2f
+        val cy = metrics.heightPixels / 2f
+        val half = pixels / 2f
+        val startY = if (down) cy - half else cy + half
+        val endY = if (down) cy + half else cy - half
+        val path = Path().apply {
+            moveTo(cx, startY)
+            lineTo(cx, endY)
+        }
+        val stroke = GestureDescription.StrokeDescription(path, 0, 200)
         return dispatchAwait(GestureDescription.Builder().addStroke(stroke).build())
     }
 

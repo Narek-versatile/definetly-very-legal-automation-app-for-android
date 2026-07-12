@@ -157,6 +157,16 @@ class AutomationEngine(
             }
         }
 
+        is Step.HideKeyboard -> {
+            service?.hideKeyboard() // best-effort; not finding a keyboard is fine
+            delay(400)
+            ok()
+        }
+
+        is Step.SwipeSmall -> requireService { svc ->
+            if (svc.swipeSmall(step.down, step.pixels)) ok() else fail("swipe rejected")
+        }
+
         is Step.OpenUrl -> openUrl(step)
         is Step.WebSearch -> webSearch(step)
 

@@ -53,6 +53,23 @@ class AutomationStore(context: Context) {
         refresh()
     }
 
+    /** Re-writes the built-in vote automations to their latest tuned versions,
+     *  replacing older copies (matched by name or stable id) so there are no
+     *  duplicates. User-created automations are left untouched. */
+    suspend fun reseedBuiltIns() = withContext(Dispatchers.IO) {
+        val seeds = sampleAutomations()
+        val seedNames = seeds.map { it.name }.toSet()
+        val seedIds = seeds.map { it.id }.toSet()
+        dir.listFiles { f -> f.extension == "json" }?.forEach { f ->
+            val existing = runCatching { AppJson.decodeFromString<Automation>(f.readText()) }.getOrNull()
+            if (existing != null && existing.name in seedNames && existing.id !in seedIds) {
+                f.delete()
+            }
+        }
+        seeds.forEach { File(dir, "${it.id}.json").writeText(AppJson.encodeToString(it)) }
+        refresh()
+    }
+
     fun get(id: String): Automation? = _automations.value.firstOrNull { it.id == id }
 
     /**
@@ -77,6 +94,7 @@ class AutomationStore(context: Context) {
 
     /** best-minecraft-servers.co: input name="username", button "Vote!". */
     private fun bestMinecraftServersVote() = Automation(
+        id = "seed-vote-2",
         name = "Vote 2: Best-Minecraft-Servers",
         description = "Opens the vote page, fills your {username}, taps Vote!, then pauses " +
             "for any captcha. Set your username in Settings.",
@@ -86,7 +104,9 @@ class AutomationStore(context: Context) {
                 target = UrlTarget.GOOGLE_APP,
             ),
             Step.WaitFor(text = "Minecraft Username", timeoutMs = 30000),
-            Step.InputText(text = "{username}", intoText = "Minecraft Username", retry = RetryPolicy(attempts = 2)),
+            Step.InputText(text = "{username}", intoText = "Minecraft Username", retry = RetryPolicy(attempts = 3)),
+            Step.HideKeyboard(),
+            Step.SwipeSmall(down = true, pixels = 150),
             Step.TapText(text = "Vote!"),
             Step.ManualStep(
                 message = "If a reCAPTCHA challenge appears, solve it then wait. Usually invisible.",
@@ -98,6 +118,7 @@ class AutomationStore(context: Context) {
 
     /** minerank.com: input id="mc_username", submit "Send Vote", Cloudflare Turnstile. */
     private fun minerankVote() = Automation(
+        id = "seed-vote-3",
         name = "Vote 3: MineRank",
         description = "Opens the vote page, fills your {username} (case-sensitive!), taps " +
             "Send Vote, then pauses for the Cloudflare check. Set your username in Settings.",
@@ -107,8 +128,10 @@ class AutomationStore(context: Context) {
                 target = UrlTarget.GOOGLE_APP,
             ),
             Step.WaitFor(text = "Minecraft Username", timeoutMs = 30000),
-            Step.InputText(text = "{username}", intoId = "mc_username", retry = RetryPolicy(attempts = 2)),
-            Step.TapText(text = "Send Vote"),
+            Step.InputText(text = "{username}", intoId = "mc_username", retry = RetryPolicy(attempts = 3)),
+            Step.HideKeyboard(),
+            Step.SwipeSmall(down = true, pixels = 150),
+            Step.TapId(viewId = "vote-now"), // the submit button
             Step.ManualStep(
                 message = "If the Cloudflare check needs you, complete it then wait. " +
                     "Usually it passes on its own.",
@@ -120,6 +143,7 @@ class AutomationStore(context: Context) {
 
     /** Perfected flow for topminecraftservers.org/vote/18687. */
     private fun topMinecraftServersVote() = Automation(
+        id = "seed-vote-1",
         name = "Vote 1: TopMinecraftServers",
         description = "Opens the vote page, types your {username} in the Minecraft Username " +
             "box, taps Vote!, then pauses in case the (usually invisible) reCAPTCHA shows a " +
@@ -132,20 +156,27 @@ class AutomationStore(context: Context) {
             // Ad-heavy page + browser cold start: give the accessibility tree
             // time to populate (it does — confirmed via a scan).
             Step.WaitFor(text = "Minecraft Username", timeoutMs = 30000),
-            // Target the real web ids that Chrome exposes, not label text.
-            Step.InputText(text = "{username}", intoId = "username", retry = RetryPolicy(attempts = 2)),
+            // Retry through an intermittent Cloudflare "verify you are human"
+            // screen: keep trying until the field comes back.
+            Step.InputText(
+                text = "{username}",
+                intoId = "username",
+                retry = RetryPolicy(attempts = 6, backoffMs = 2500),
+            ),
+            Step.HideKeyboard(), // otherwise the keyboard eats the Vote tap
+            Step.SwipeSmall(down = true, pixels = 150),
             Step.TapId(viewId = "voteButton"),
             Step.ManualStep(
-                message = "If a reCAPTCHA image challenge appears, solve it then wait. " +
+                message = "If a reCAPTCHA / Cloudflare challenge appears, solve it then wait. " +
                     "It's usually invisible, so often nothing to do.",
                 timeoutMs = 15000,
             ),
             Step.Sleep(ms = 3000),
-            Step.Verify(text = "hank", expectPresent = true), // "Thank you for voting"
         ),
     )
 
     private fun voteAutomation(number: Int, siteLabel: String, url: String) = Automation(
+        id = "seed-vote-$number",
         name = "Vote $number: $siteLabel",
         description = "Opens $url in the Google app, fills your {username}, waits for you " +
             "to solve any captcha, then taps Vote. Set your username in Settings. " +

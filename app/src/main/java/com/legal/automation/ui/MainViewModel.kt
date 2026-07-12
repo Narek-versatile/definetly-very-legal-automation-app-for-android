@@ -50,6 +50,10 @@ class MainViewModel(private val app: App) : ViewModel() {
         viewModelScope.launch { app.store.delete(id) }
     }
 
+    fun reloadBuiltIns() {
+        viewModelScope.launch { app.store.reseedBuiltIns() }
+    }
+
     /** Parses edited JSON back into an [Automation]; null if malformed. */
     fun parse(json: String): Automation? =
         runCatching { AppJson.decodeFromString<Automation>(json) }.getOrNull()
