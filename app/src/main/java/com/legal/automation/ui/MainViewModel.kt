@@ -18,6 +18,7 @@ class MainViewModel(private val app: App) : ViewModel() {
     val shizukuStatus = ShizukuManager.status
     val useShizuku = app.settings.useShizuku
     val username = app.settings.username
+    val realTaps = app.settings.realTaps
 
     init {
         viewModelScope.launch { app.store.load() }
@@ -30,6 +31,8 @@ class MainViewModel(private val app: App) : ViewModel() {
     fun setUseShizuku(value: Boolean) = app.settings.setUseShizuku(value)
 
     fun setUsername(value: String) = app.settings.setUsername(value)
+
+    fun setRealTaps(value: Boolean) = app.settings.setRealTaps(value)
 
     fun requestShizuku() {
         viewModelScope.launch {

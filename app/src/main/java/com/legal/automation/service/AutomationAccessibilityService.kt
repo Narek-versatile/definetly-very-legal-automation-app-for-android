@@ -218,16 +218,16 @@ class AutomationAccessibilityService : AccessibilityService() {
 
     // --- Acting ------------------------------------------------------------
 
-    suspend fun clickText(text: String, exact: Boolean): Boolean {
+    suspend fun clickText(text: String, exact: Boolean, realTapFirst: Boolean): Boolean {
         // Prefer a node that's actually clickable (the button), not e.g. a
         // matching heading/breadcrumb with the same word.
         val node = findClickableByText(text, exact) ?: findByText(text, exact) ?: return false
-        return clickNode(node)
+        return clickNode(node, realTapFirst)
     }
 
-    suspend fun clickId(viewId: String): Boolean {
+    suspend fun clickId(viewId: String, realTapFirst: Boolean): Boolean {
         val node = findById(viewId) ?: return false
-        return clickNode(node)
+        return clickNode(node, realTapFirst)
     }
 
     private fun findClickableByText(text: String, exact: Boolean): AccessibilityNodeInfo? =
@@ -329,34 +329,54 @@ class AutomationAccessibilityService : AccessibilityService() {
         return false
     }
 
-    private suspend fun clickNode(node: AccessibilityNodeInfo): Boolean {
-        // Prefer a REAL gesture tap at the element's on-screen centre. For web
-        // buttons, accessibility ACTION_CLICK frequently reports success without
-        // firing the button's JavaScript, whereas a genuine touch does. Only
-        // fall back to ACTION_CLICK when the node has no usable on-screen bounds
-        // (e.g. off-screen / zero-size), where a coordinate tap can't work.
-        val metrics = displayMetrics()
-        fun onScreen(b: Rect) = b.width() > 0 && b.height() > 0 &&
-            b.centerX() in 1 until metrics.widthPixels &&
-            b.centerY() in 1 until metrics.heightPixels
+    /**
+     * Two ways to click, because neither works everywhere:
+     *  - accessibility ACTION_CLICK bypasses ad overlays and works on most
+     *    buttons, but silently does nothing on some web buttons;
+     *  - a real gesture tap fires those, but can hit overlays/toolbars.
+     * [realTapFirst] (a user setting) picks the order per run.
+     */
+    private suspend fun clickNode(node: AccessibilityNodeInfo, realTapFirst: Boolean): Boolean {
+        return if (realTapFirst) {
+            gestureTapOn(node) || actionClickOn(node)
+        } else {
+            actionClickOn(node) || gestureTapOn(node)
+        }
+    }
 
-        var bounds = Rect().also { node.getBoundsInScreen(it) }
-        if (!onScreen(bounds)) {
-            // Button below the fold: scroll it into view, then re-read bounds.
+    private fun actionClickOn(node: AccessibilityNodeInfo): Boolean {
+        var target: AccessibilityNodeInfo? = node
+        while (target != null && !target.isClickable) target = target.parent
+        return target?.performAction(AccessibilityNodeInfo.ACTION_CLICK) == true
+    }
+
+    /** Real touch at the element's centre, but only within the safe visible
+     *  area (never the top status bar or the browser's bottom toolbar/share
+     *  row), scrolling it into view first if needed. */
+    private suspend fun gestureTapOn(node: AccessibilityNodeInfo): Boolean {
+        val metrics = displayMetrics()
+        val safeTop = (metrics.heightPixels * 0.06f).toInt()
+        val safeBottom = (metrics.heightPixels * 0.90f).toInt()
+
+        fun freshSafeBounds(): Rect? {
+            runCatching { node.refresh() }
+            val b = Rect().also { node.getBoundsInScreen(it) }
+            val ok = b.width() > 0 && b.height() > 0 &&
+                b.centerX() in 1 until metrics.widthPixels &&
+                b.centerY() in safeTop..safeBottom
+            return if (ok) b else null
+        }
+
+        var bounds = freshSafeBounds()
+        if (bounds == null) {
             runCatching {
                 node.performAction(AccessibilityNodeInfo.AccessibilityAction.ACTION_SHOW_ON_SCREEN.id)
             }
             delay(350)
-            runCatching { node.refresh() }
-            bounds = Rect().also { node.getBoundsInScreen(it) }
+            bounds = freshSafeBounds()
         }
-        if (onScreen(bounds) && tap(bounds.centerX(), bounds.centerY())) return true
-
-        var target: AccessibilityNodeInfo? = node
-        while (target != null && !target.isClickable) {
-            target = target.parent
-        }
-        return target?.performAction(AccessibilityNodeInfo.ACTION_CLICK) == true
+        val b = bounds ?: return false
+        return tap(b.centerX(), b.centerY())
     }
 
     suspend fun tap(x: Int, y: Int): Boolean {

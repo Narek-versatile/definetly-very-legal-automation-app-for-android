@@ -140,9 +140,9 @@ class AutomationStore(context: Context) {
                 timeoutMs = 3000,
             ),
             Step.WaitFor(text = "Success", timeoutMs = 40000), // Turnstile gate
-            // The submit button's text is exactly "Vote " (trailing space) —
-            // exact match avoids the "Vote for…" heading / breadcrumb.
-            Step.TapText(text = "Vote ", exact = true),
+            // Submit button reads "Vote"; clickable-preference avoids the
+            // "Vote for…" heading. Turn on "Use real taps" if it doesn't fire.
+            Step.TapText(text = "Vote"),
             Step.Sleep(ms = 3000),
         ),
     )

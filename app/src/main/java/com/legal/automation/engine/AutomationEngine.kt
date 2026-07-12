@@ -115,12 +115,13 @@ class AutomationEngine(
     private suspend fun executeStep(step: Step): StepResult = when (step) {
         is Step.LaunchApp -> launchApp(step)
         is Step.TapText -> requireService { svc ->
-            if (svc.clickText(step.text, step.exact)) ok()
+            if (svc.clickText(step.text, step.exact, settings.realTaps.value)) ok()
             else fail("no element with text “${step.text}”")
         }
 
         is Step.TapId -> requireService { svc ->
-            if (svc.clickId(step.viewId)) ok() else fail("no element with id “${step.viewId}”")
+            if (svc.clickId(step.viewId, settings.realTaps.value)) ok()
+            else fail("no element with id “${step.viewId}”")
         }
 
         is Step.InputText -> inputText(step)

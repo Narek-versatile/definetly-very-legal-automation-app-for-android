@@ -115,6 +115,7 @@ private fun HomeScreen(
     val shizuku by vm.shizukuStatus.collectAsState()
     val useShizuku by vm.useShizuku.collectAsState()
     val username by vm.username.collectAsState()
+    val realTaps by vm.realTaps.collectAsState()
     val accessibilityEnabled = rememberAccessibilityEnabled()
     val context = LocalContext.current
 
@@ -170,6 +171,19 @@ private fun HomeScreen(
 
             item {
                 UsernameCard(username = username, onChange = { vm.setUsername(it) })
+            }
+
+            item {
+                ToggleCard(
+                    title = "Use real taps",
+                    subtitle = if (realTaps) {
+                        "On — genuine touch (for buttons that ignore normal clicks)"
+                    } else {
+                        "Off — accessibility click first (bypasses ad overlays)"
+                    },
+                    checked = realTaps,
+                    onToggle = { vm.setRealTaps(it) },
+                )
             }
 
             if (runState.running) {
@@ -327,6 +341,27 @@ private fun UsernameCard(username: String, onChange: (String) -> Unit) {
                 label = { Text("Minecraft username") },
                 modifier = Modifier.fillMaxWidth(),
             )
+        }
+    }
+}
+
+@Composable
+private fun ToggleCard(
+    title: String,
+    subtitle: String,
+    checked: Boolean,
+    onToggle: (Boolean) -> Unit,
+) {
+    Card {
+        Row(
+            Modifier.fillMaxWidth().padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(Modifier.weight(1f)) {
+                Text(title, style = MaterialTheme.typography.titleSmall)
+                Text(subtitle, style = MaterialTheme.typography.bodySmall)
+            }
+            Switch(checked = checked, onCheckedChange = onToggle)
         }
     }
 }
