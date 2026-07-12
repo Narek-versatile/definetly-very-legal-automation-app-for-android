@@ -79,18 +79,109 @@ class AutomationStore(context: Context) {
      * and verifies. The field label ("Username") and button text ("Vote") are
      * best-effort defaults — tweak per site in the editor after seeing the page.
      */
-    private fun sampleAutomations(): List<Automation> {
-        // Sites 1-3 are tuned to their real pages (confirmed via screen scans).
-        // The rest use a generic template until each is dialed in the same way.
-        val rest = listOf(
-            "Minecraft-Server-List" to "https://minecraft-server-list.com/server/288369/vote/",
-            "Minecraft-MP" to "https://minecraft-mp.com/server/52462/vote/",
-            "MinecraftKrant" to "https://minecraftkrant.nl/server/jartexnetwork/vote",
-            "Minecraft.buzz" to "https://minecraft.buzz/server/24&tab=vote",
-        )
-        return listOf(topMinecraftServersVote(), bestMinecraftServersVote(), minerankVote()) +
-            rest.mapIndexed { index, (label, url) -> voteAutomation(index + 4, label, url) }
-    }
+    private fun sampleAutomations(): List<Automation> = listOf(
+        topMinecraftServersVote(),
+        bestMinecraftServersVote(),
+        minerankVote(),
+        minecraftServerListVote(),
+        minecraftMpVote(),
+        minecraftKrantVote(),
+        minecraftBuzzVote(),
+    )
+
+    /** minecraft-server-list.com: input id="ignnn", button id="voteButton", invisible reCAPTCHA. */
+    private fun minecraftServerListVote() = Automation(
+        id = "seed-vote-4",
+        name = "Vote 4: Minecraft-Server-List",
+        description = "Fills your {username}, taps Click to Vote, then pauses for any captcha.",
+        steps = listOf(
+            Step.OpenUrl(
+                url = "https://minecraft-server-list.com/server/288369/vote/",
+                target = UrlTarget.GOOGLE_APP,
+            ),
+            Step.WaitFor(text = "Vote for JartexNetwork", timeoutMs = 30000),
+            Step.InputText(text = "{username}", intoId = "ignnn", retry = RetryPolicy(attempts = 6, backoffMs = 2000)),
+            Step.HideKeyboard(),
+            Step.SwipeSmall(down = true, pixels = 150),
+            Step.TapId(viewId = "voteButton"),
+            Step.ManualStep(
+                message = "If a reCAPTCHA challenge appears, solve it then wait. Usually invisible.",
+                timeoutMs = 15000,
+            ),
+            Step.Sleep(ms = 3000),
+        ),
+    )
+
+    /** minecraft-mp.com: Cloudflare interstitial + Turnstile, input id="nickname",
+     *  required id="accept" checkbox, submit button "Vote". The trickiest one. */
+    private fun minecraftMpVote() = Automation(
+        id = "seed-vote-5",
+        name = "Vote 5: Minecraft-MP",
+        description = "Rides out the Cloudflare check, fills your {username}, ticks the agree " +
+            "box, waits for the Cloudflare verification, then votes. This site is the fussiest — " +
+            "if a step fails, just re-run it.",
+        steps = listOf(
+            Step.OpenUrl(
+                url = "https://minecraft-mp.com/server/52462/vote/",
+                target = UrlTarget.GOOGLE_APP,
+            ),
+            Step.ManualStep(
+                message = "If a Cloudflare “verify you are human” page shows, wait for it to pass.",
+                timeoutMs = 5000,
+            ),
+            // High retry to survive the Cloudflare interstitial before the form loads.
+            Step.InputText(text = "{username}", intoId = "nickname", retry = RetryPolicy(attempts = 8, backoffMs = 3000)),
+            Step.HideKeyboard(),
+            Step.TapId(viewId = "accept"), // tick "I agree"
+            Step.SwipeSmall(down = true, pixels = 150),
+            Step.ManualStep(
+                message = "Complete the Cloudflare “I'm not a robot” check if shown. " +
+                    "Voting waits until it's verified.",
+                timeoutMs = 3000,
+            ),
+            Step.WaitFor(text = "Success", timeoutMs = 40000), // Turnstile gate
+            Step.TapText(text = "Vote"),
+            Step.Sleep(ms = 3000),
+        ),
+    )
+
+    /** minecraftkrant.nl (Dutch): input id="minecraft_name", submit "Stem op deze server", no captcha. */
+    private fun minecraftKrantVote() = Automation(
+        id = "seed-vote-6",
+        name = "Vote 6: MinecraftKrant",
+        description = "Dutch site, no captcha. Fills your {username} and taps “Stem op deze server”.",
+        steps = listOf(
+            Step.OpenUrl(
+                url = "https://minecraftkrant.nl/server/jartexnetwork/vote",
+                target = UrlTarget.GOOGLE_APP,
+            ),
+            Step.WaitFor(text = "MINECRAFT NAAM", timeoutMs = 30000),
+            Step.InputText(text = "{username}", intoId = "minecraft_name", retry = RetryPolicy(attempts = 6, backoffMs = 2000)),
+            Step.HideKeyboard(),
+            Step.SwipeSmall(down = true, pixels = 150),
+            Step.TapText(text = "Stem op deze server"),
+            Step.Sleep(ms = 3000),
+        ),
+    )
+
+    /** minecraft.buzz: page didn't expose its content to accessibility in the scan;
+     *  open it and let the user vote by hand until it can be automated. */
+    private fun minecraftBuzzVote() = Automation(
+        id = "seed-vote-7",
+        name = "Vote 7: Minecraft.buzz",
+        description = "This site didn't expose its page to the automation engine yet, so this " +
+            "just opens it for you to vote manually. We'll automate it once we can read it.",
+        steps = listOf(
+            Step.OpenUrl(
+                url = "https://minecraft.buzz/server/24?tab=vote",
+                target = UrlTarget.GOOGLE_APP,
+            ),
+            Step.ManualStep(
+                message = "Vote here by hand — this page can't be automated yet.",
+                timeoutMs = 20000,
+            ),
+        ),
+    )
 
     /** best-minecraft-servers.co: input name="username", button "Vote!". */
     private fun bestMinecraftServersVote() = Automation(
@@ -139,12 +230,14 @@ class AutomationStore(context: Context) {
             ),
             Step.HideKeyboard(),
             Step.SwipeSmall(down = true, pixels = 150),
-            Step.TapId(viewId = "vote-now"), // the submit button
             Step.ManualStep(
-                message = "If the Cloudflare check needs you, complete it then wait. " +
-                    "Usually it passes on its own.",
-                timeoutMs = 15000,
+                message = "Complete the Cloudflare “I'm not a robot” check if it's shown. " +
+                    "Voting waits until it's verified.",
+                timeoutMs = 3000,
             ),
+            // Gate: don't submit until Cloudflare Turnstile reports success.
+            Step.WaitFor(text = "Success", timeoutMs = 40000),
+            Step.TapId(viewId = "vote-now"), // the submit button
             Step.Sleep(ms = 3000),
         ),
     )
@@ -183,27 +276,4 @@ class AutomationStore(context: Context) {
         ),
     )
 
-    private fun voteAutomation(number: Int, siteLabel: String, url: String) = Automation(
-        id = "seed-vote-$number",
-        name = "Vote $number: $siteLabel",
-        description = "Opens $url in the Google app, fills your {username}, waits for you " +
-            "to solve any captcha, then taps Vote. Set your username in Settings. " +
-            "If the field/button aren't found, edit this step's target text to match the page.",
-        steps = listOf(
-            Step.OpenUrl(url = url, target = UrlTarget.GOOGLE_APP),
-            Step.WaitFor(text = "ote", timeoutMs = 12000), // matches "Vote"/"vote"
-            Step.InputText(
-                text = "{username}",
-                intoText = "Username",
-                retry = RetryPolicy(attempts = 2),
-            ),
-            Step.ManualStep(
-                message = "Solve the captcha / 'I'm not a robot' if shown, then wait…",
-                timeoutMs = 25000,
-            ),
-            Step.TapText(text = "Vote"),
-            Step.Sleep(ms = 3000),
-            Step.Verify(text = "hank", expectPresent = true), // "Thank you for voting"
-        ),
-    )
 }
