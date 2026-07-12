@@ -55,6 +55,20 @@ sealed class Step {
         override fun describe() = "Launch “$appLabel”"
     }
 
+    /**
+     * Clears an app's data/cache (via Shizuku `pm clear`), e.g. to reset a
+     * site's remembered form state. Heavy: for a browser it also wipes tabs
+     * and can trigger the browser's first-run screen. No-op without Shizuku.
+     */
+    @Serializable
+    @SerialName("clear_app_data")
+    data class ClearAppData(
+        val packageName: String,
+        override val retry: RetryPolicy = RetryPolicy(attempts = 1),
+    ) : Step() {
+        override fun describe() = "Clear data of $packageName"
+    }
+
     /** Tap the first element whose visible text matches. */
     @Serializable
     @SerialName("tap_text")

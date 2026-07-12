@@ -158,6 +158,12 @@ object ShizukuManager {
         return !out.startsWith("ERROR")
     }
 
+    /** Wipes an app's data/cache (`pm clear`). Requires Shizuku. */
+    suspend fun clearAppData(packageName: String): Boolean {
+        val out = exec("pm clear ${shArg(packageName)}") ?: return false
+        return out.contains("Success")
+    }
+
     fun unbind() {
         runCatching { Shizuku.unbindUserService(userServiceArgs, connection, true) }
         userService = null

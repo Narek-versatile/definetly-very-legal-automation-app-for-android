@@ -89,62 +89,84 @@ class AutomationStore(context: Context) {
         minecraftBuzzVote(),
     )
 
-    /** minecraft-server-list.com: input id="ignnn", button id="voteButton", invisible reCAPTCHA. */
-    private fun minecraftServerListVote() = Automation(
-        id = "seed-vote-4",
-        name = "Vote 4: Minecraft-Server-List",
-        description = "Fills your {username}, taps Click to Vote, then pauses for any captcha.",
+    /** topminecraftservers.org: input id="username", button id="voteButton", invisible reCAPTCHA. */
+    private fun topMinecraftServersVote() = Automation(
+        id = "seed-vote-1",
+        name = "Vote 1: TopMinecraftServers",
+        description = "Fills your {username} and taps Vote. Set your username in Settings.",
         steps = listOf(
-            Step.OpenUrl(
-                url = "https://minecraft-server-list.com/server/288369/vote/",
-                target = UrlTarget.GOOGLE_APP,
-            ),
-            Step.WaitFor(text = "Vote for JartexNetwork", timeoutMs = 30000),
-            Step.InputText(text = "{username}", intoId = "ignnn", retry = RetryPolicy(attempts = 6, backoffMs = 2000)),
+            Step.OpenUrl(url = "https://topminecraftservers.org/vote/18687", target = UrlTarget.GOOGLE_APP),
+            Step.WaitFor(text = "Minecraft Username", timeoutMs = 30000),
+            Step.InputText(text = "{username}", intoId = "username", retry = RetryPolicy(attempts = 6, backoffMs = 2500)),
             Step.HideKeyboard(),
-            // Inconsistent submit: re-tap a few times.
-            Step.TapAndConfirm(viewId = "voteButton", attempts = 3, gapMs = 4000),
-            Step.ManualStep(
-                message = "If a reCAPTCHA challenge appears, solve it then wait. Usually invisible.",
-                timeoutMs = 15000,
-            ),
-            Step.Sleep(ms = 3000),
+            Step.TapId(viewId = "voteButton"),
         ),
     )
 
-    /** minecraft-mp.com: Cloudflare interstitial + Turnstile, input id="nickname",
-     *  required id="accept" checkbox, submit button "Vote". The trickiest one. */
+    /** best-minecraft-servers.co: input name="username", button "Vote!". */
+    private fun bestMinecraftServersVote() = Automation(
+        id = "seed-vote-2",
+        name = "Vote 2: Best-Minecraft-Servers",
+        description = "Fills your {username} and taps Vote!.",
+        steps = listOf(
+            Step.OpenUrl(url = "https://best-minecraft-servers.co/server-jartexnetwork.4402/vote", target = UrlTarget.GOOGLE_APP),
+            Step.WaitFor(text = "Minecraft Username", timeoutMs = 30000),
+            Step.InputText(text = "{username}", intoText = "Minecraft Username", retry = RetryPolicy(attempts = 6, backoffMs = 2000)),
+            Step.HideKeyboard(),
+            Step.TapText(text = "Vote!"),
+        ),
+    )
+
+    /** minerank.com: input id="mc_username", submit text "Send Vote", Cloudflare Turnstile. */
+    private fun minerankVote() = Automation(
+        id = "seed-vote-3",
+        name = "Vote 3: MineRank",
+        description = "Waits for the page, fills your {username} (case-sensitive!), waits for the " +
+            "Cloudflare check, then taps Send Vote.",
+        steps = listOf(
+            Step.OpenUrl(url = "https://www.minerank.com/jartexnetwork/vote", target = UrlTarget.GOOGLE_APP),
+            Step.Sleep(ms = 3000), // let the site start loading before we work
+            Step.WaitFor(text = "Minecraft Username", timeoutMs = 30000),
+            Step.InputText(text = "{username}", intoId = "mc_username", retry = RetryPolicy(attempts = 6, backoffMs = 2000)),
+            Step.HideKeyboard(),
+            // Don't submit until Cloudflare Turnstile reports success.
+            Step.WaitFor(text = "Success", timeoutMs = 40000),
+            // Tap the visible "Send Vote" button; re-tap until it takes.
+            Step.TapAndConfirm(text = "Send Vote", attempts = 3, gapMs = 4000),
+        ),
+    )
+
+    /** minecraft-server-list.com: input id="ignnn", button id="voteButton" ("Click to Vote"). */
+    private fun minecraftServerListVote() = Automation(
+        id = "seed-vote-4",
+        name = "Vote 4: Minecraft-Server-List",
+        description = "Fills your {username}, waits for the button, then taps Click to Vote.",
+        steps = listOf(
+            Step.OpenUrl(url = "https://minecraft-server-list.com/server/288369/vote/", target = UrlTarget.GOOGLE_APP),
+            Step.WaitFor(text = "Vote for JartexNetwork", timeoutMs = 30000),
+            Step.InputText(text = "{username}", intoId = "ignnn", retry = RetryPolicy(attempts = 6, backoffMs = 2000)),
+            Step.HideKeyboard(),
+            // Wait for the vote button to finish loading before tapping.
+            Step.WaitFor(text = "Click to Vote", timeoutMs = 20000),
+            Step.TapAndConfirm(viewId = "voteButton", attempts = 3, gapMs = 4000),
+        ),
+    )
+
+    /** minecraft-mp.com: Cloudflare + Turnstile, input id="nickname", id="accept" box, button "Vote". */
     private fun minecraftMpVote() = Automation(
         id = "seed-vote-5",
         name = "Vote 5: Minecraft-MP",
-        description = "Rides out the Cloudflare check, fills your {username}, ticks the agree " +
-            "box, waits for the Cloudflare verification, then votes. This site is the fussiest — " +
-            "if a step fails, just re-run it.",
+        description = "Fills your {username}, ticks the agree box (only if needed), waits for the " +
+            "Cloudflare check, then taps Vote. The fussiest site — re-run if a step fails.",
         steps = listOf(
-            Step.OpenUrl(
-                url = "https://minecraft-mp.com/server/52462/vote/",
-                target = UrlTarget.GOOGLE_APP,
-            ),
-            Step.ManualStep(
-                message = "If a Cloudflare “verify you are human” page shows, wait for it to pass.",
-                timeoutMs = 5000,
-            ),
-            // High retry to survive the Cloudflare interstitial before the form loads.
+            Step.OpenUrl(url = "https://minecraft-mp.com/server/52462/vote/", target = UrlTarget.GOOGLE_APP),
+            // High retry to ride out the Cloudflare interstitial before the form loads.
             Step.InputText(text = "{username}", intoId = "nickname", retry = RetryPolicy(attempts = 8, backoffMs = 3000)),
             Step.HideKeyboard(),
-            // Only tick "I agree" if it isn't already remembered as ticked —
-            // tapping a remembered tick would turn it OFF and break the vote.
+            // Tick "I agree" only if it isn't already remembered as ticked.
             Step.EnsureChecked(viewId = "accept", checked = true),
-            Step.ManualStep(
-                message = "Complete the Cloudflare “I'm not a robot” check if shown. " +
-                    "Voting waits until it's verified.",
-                timeoutMs = 3000,
-            ),
             Step.WaitFor(text = "Success", timeoutMs = 40000), // Turnstile gate
-            // Submit button reads "Vote"; clickable-preference avoids the
-            // "Vote for…" heading. Turn on "Use real taps" if it doesn't fire.
-            Step.TapText(text = "Vote"),
-            Step.Sleep(ms = 3000),
+            Step.TapAndConfirm(text = "Vote", attempts = 3, gapMs = 4000),
         ),
     )
 
@@ -154,129 +176,26 @@ class AutomationStore(context: Context) {
         name = "Vote 6: MinecraftKrant",
         description = "Dutch site, no captcha. Fills your {username} and taps “Stem op deze server”.",
         steps = listOf(
-            Step.OpenUrl(
-                url = "https://minecraftkrant.nl/server/jartexnetwork/vote",
-                target = UrlTarget.GOOGLE_APP,
-            ),
+            Step.OpenUrl(url = "https://minecraftkrant.nl/server/jartexnetwork/vote", target = UrlTarget.GOOGLE_APP),
             Step.WaitFor(text = "MINECRAFT NAAM", timeoutMs = 30000),
             Step.InputText(text = "{username}", intoId = "minecraft_name", retry = RetryPolicy(attempts = 6, backoffMs = 2000)),
             Step.HideKeyboard(),
             Step.TapText(text = "Stem op deze server"),
-            // This site runs a countdown before the vote counts — wait it out
-            // before the run reports success.
-            Step.Sleep(ms = 10000),
         ),
     )
 
-    /** minecraft.buzz: the real vote form is at /vote/24 — input id="username-input",
-     *  submit id="submitter", no captcha. */
+    /** minecraft.buzz: /vote/24 — input id="username-input", submit id="submitter", no captcha. */
     private fun minecraftBuzzVote() = Automation(
         id = "seed-vote-7",
         name = "Vote 7: Minecraft.buzz",
-        description = "Fills your {username} and taps Submit. No captcha.",
+        description = "Fills your {username} and taps Submit.",
         steps = listOf(
-            Step.OpenUrl(
-                url = "https://minecraft.buzz/vote/24",
-                target = UrlTarget.GOOGLE_APP,
-            ),
+            Step.OpenUrl(url = "https://minecraft.buzz/vote/24", target = UrlTarget.GOOGLE_APP),
             Step.WaitFor(text = "Minecraft Username", timeoutMs = 30000),
             Step.InputText(text = "{username}", intoId = "username-input", retry = RetryPolicy(attempts = 6, backoffMs = 2000)),
             Step.HideKeyboard(),
-            // Submit didn't always register on the first tap — re-tap a few times.
             Step.TapAndConfirm(viewId = "submitter", attempts = 3, gapMs = 5000),
-            Step.Sleep(ms = 3000),
+            Step.Sleep(ms = 5000), // this site needs a moment after submit
         ),
     )
-
-    /** best-minecraft-servers.co: input name="username", button "Vote!". */
-    private fun bestMinecraftServersVote() = Automation(
-        id = "seed-vote-2",
-        name = "Vote 2: Best-Minecraft-Servers",
-        description = "Opens the vote page, fills your {username}, taps Vote!, then pauses " +
-            "for any captcha. Set your username in Settings.",
-        steps = listOf(
-            Step.OpenUrl(
-                url = "https://best-minecraft-servers.co/server-jartexnetwork.4402/vote",
-                target = UrlTarget.GOOGLE_APP,
-            ),
-            Step.WaitFor(text = "Minecraft Username", timeoutMs = 30000),
-            Step.InputText(
-                text = "{username}",
-                intoText = "Minecraft Username",
-                retry = RetryPolicy(attempts = 6, backoffMs = 2000),
-            ),
-            Step.HideKeyboard(),
-            Step.TapText(text = "Vote!"),
-            Step.ManualStep(
-                message = "If a reCAPTCHA challenge appears, solve it then wait. Usually invisible.",
-                timeoutMs = 15000,
-            ),
-            Step.Sleep(ms = 3000),
-        ),
-    )
-
-    /** minerank.com: input id="mc_username", submit "Send Vote", Cloudflare Turnstile. */
-    private fun minerankVote() = Automation(
-        id = "seed-vote-3",
-        name = "Vote 3: MineRank",
-        description = "Opens the vote page, fills your {username} (case-sensitive!), taps " +
-            "Send Vote, then pauses for the Cloudflare check. Set your username in Settings.",
-        steps = listOf(
-            Step.OpenUrl(
-                url = "https://www.minerank.com/jartexnetwork/vote",
-                target = UrlTarget.GOOGLE_APP,
-            ),
-            Step.WaitFor(text = "Minecraft Username", timeoutMs = 30000),
-            Step.InputText(
-                text = "{username}",
-                intoId = "mc_username",
-                retry = RetryPolicy(attempts = 6, backoffMs = 2000),
-            ),
-            Step.HideKeyboard(),
-            Step.ManualStep(
-                message = "Complete the Cloudflare “I'm not a robot” check if it's shown. " +
-                    "Voting waits until it's verified.",
-                timeoutMs = 3000,
-            ),
-            // Gate: don't submit until Cloudflare Turnstile reports success.
-            Step.WaitFor(text = "Success", timeoutMs = 40000),
-            // Flaky React submit: re-tap a few times until it takes.
-            Step.TapAndConfirm(viewId = "vote-now", attempts = 3, gapMs = 4000),
-            Step.Sleep(ms = 10000), // countdown before the vote counts
-        ),
-    )
-
-    /** Perfected flow for topminecraftservers.org/vote/18687. */
-    private fun topMinecraftServersVote() = Automation(
-        id = "seed-vote-1",
-        name = "Vote 1: TopMinecraftServers",
-        description = "Opens the vote page, types your {username} in the Minecraft Username " +
-            "box, taps Vote!, then pauses in case the (usually invisible) reCAPTCHA shows a " +
-            "challenge. Set your username in Settings.",
-        steps = listOf(
-            Step.OpenUrl(
-                url = "https://topminecraftservers.org/vote/18687",
-                target = UrlTarget.GOOGLE_APP,
-            ),
-            // Ad-heavy page + browser cold start: give the accessibility tree
-            // time to populate (it does — confirmed via a scan).
-            Step.WaitFor(text = "Minecraft Username", timeoutMs = 30000),
-            // Retry through an intermittent Cloudflare "verify you are human"
-            // screen: keep trying until the field comes back.
-            Step.InputText(
-                text = "{username}",
-                intoId = "username",
-                retry = RetryPolicy(attempts = 6, backoffMs = 2500),
-            ),
-            Step.HideKeyboard(), // otherwise the keyboard eats the Vote tap
-            Step.TapId(viewId = "voteButton"),
-            Step.ManualStep(
-                message = "If a reCAPTCHA / Cloudflare challenge appears, solve it then wait. " +
-                    "It's usually invisible, so often nothing to do.",
-                timeoutMs = 15000,
-            ),
-            Step.Sleep(ms = 3000),
-        ),
-    )
-
 }
