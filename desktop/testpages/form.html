@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>AutoFlow self-test form</title>
+</head>
+<body>
+  <h1>Vote for TestServer</h1>
+  <label for="username">Minecraft Username</label>
+  <input id="username" name="username" type="text" placeholder="Minecraft Username" />
+
+  <label><input id="agree" type="checkbox" /> I agree to the terms</label>
+
+  <button id="voteButton" type="button">Vote!</button>
+
+  <div id="result"></div>
+
+  <script>
+    // Mirrors the shape of the real vote sites just enough to exercise the
+    // engine: requires a username AND the agree box, then shows "Success".
+    document.getElementById('voteButton').addEventListener('click', function () {
+      var name = document.getElementById('username').value.trim();
+      var agreed = document.getElementById('agree').checked;
+      var out = document.getElementById('result');
+      if (!name) { out.textContent = 'Please fill out this field.'; return; }
+      if (!agreed) { out.textContent = 'Please agree to the terms.'; return; }
+      out.textContent = 'Success! Thank you for voting, ' + name + '.';
+    });
+  </script>
+</body>
+</html>

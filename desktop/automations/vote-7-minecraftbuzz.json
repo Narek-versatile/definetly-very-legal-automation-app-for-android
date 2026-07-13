@@ -1,0 +1,11 @@
+{
+  "name": "Vote 7: Minecraft.buzz",
+  "description": "No captcha. Fills username and clicks Submit. Pass --var username=YOURNAME.",
+  "vars": { "username": "" },
+  "steps": [
+    { "type": "open_url", "url": "https://minecraft.buzz/vote/24", "browser": "chrome" },
+    { "type": "wait_for", "selector": "#username-input", "timeoutMs": 30000 },
+    { "type": "fill", "selector": "#username-input", "text": "{username}" },
+    { "type": "click_confirm", "selector": "#submitter", "attempts": 3, "gapMs": 4000 }
+  ]
+}

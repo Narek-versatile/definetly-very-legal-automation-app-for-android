@@ -1,0 +1,66 @@
+name: Desktop (.NET)
+
+on:
+  push:
+    branches:
+      - claude/android-automation-app-pwxptp
+      - main
+    paths:
+      - "desktop/**"
+      - ".github/workflows/desktop-dotnet.yml"
+  pull_request:
+    paths:
+      - "desktop/**"
+      - ".github/workflows/desktop-dotnet.yml"
+  workflow_dispatch:
+
+defaults:
+  run:
+    working-directory: desktop/dotnet
+
+jobs:
+  build-test:
+    name: Build, test, publish (windows)
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+
+      - name: Restore
+        run: dotnet restore AutoFlow.sln
+
+      - name: Build
+        run: dotnet build AutoFlow.sln -c Release --no-restore
+
+      - name: Unit tests
+        run: dotnet test AutoFlow.Tests/AutoFlow.Tests.csproj -c Release --no-build
+
+      - name: Install Playwright browsers
+        shell: pwsh
+        run: AutoFlow.Cli/bin/Release/net8.0-windows/playwright.ps1 install chromium
+
+      - name: End-to-end self-test against local form (headless)
+        shell: bash
+        run: |
+          python -m http.server 8123 --directory ../testpages &
+          SERVER_PID=$!
+          sleep 2
+          dotnet run --project AutoFlow.Cli -c Release --no-build -- \
+            run ../automations/_selftest.json \
+            --var baseurl=http://127.0.0.1:8123 --var username=CiTester --headless
+          kill $SERVER_PID
+
+      - name: Publish single-file exe
+        run: >
+          dotnet publish AutoFlow.Cli/AutoFlow.Cli.csproj -c Release -r win-x64
+          --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true
+          -o publish
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: autoflow-dotnet-win
+          path: desktop/dotnet/publish/autoflow.exe
+          if-no-files-found: error

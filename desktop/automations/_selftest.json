@@ -1,0 +1,13 @@
+{
+  "name": "Self-test (local form)",
+  "description": "Drives desktop/testpages/form.html to exercise the web engine end-to-end with no live captcha. Pass --var baseurl=http://127.0.0.1:PORT.",
+  "vars": { "username": "TestUser", "baseurl": "http://127.0.0.1:8123" },
+  "steps": [
+    { "type": "open_url", "url": "{baseurl}/form.html" },
+    { "type": "wait_for", "selector": "#username", "timeoutMs": 10000 },
+    { "type": "fill", "selector": "#username", "text": "{username}" },
+    { "type": "ensure_checked", "selector": "#agree", "checked": true },
+    { "type": "click_confirm", "selector": "#voteButton", "confirmText": "Success", "attempts": 3, "gapMs": 1000 },
+    { "type": "verify", "text": "Thank you for voting", "present": true }
+  ]
+}

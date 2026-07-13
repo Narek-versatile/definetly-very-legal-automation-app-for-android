@@ -1,0 +1,13 @@
+{
+  "name": "Vote 3: MineRank",
+  "description": "Fills username (case-sensitive!), waits for the Cloudflare Turnstile to pass, then clicks Send Vote. Pass --var username=YOURNAME.",
+  "vars": { "username": "" },
+  "steps": [
+    { "type": "open_url", "url": "https://www.minerank.com/jartexnetwork/vote", "browser": "chrome" },
+    { "type": "wait_for", "selector": "#mc_username", "timeoutMs": 30000 },
+    { "type": "fill", "selector": "#mc_username", "text": "{username}" },
+    { "type": "manual", "message": "Complete the Cloudflare check if it asks. Voting waits for 'Success'.", "timeoutMs": 5000 },
+    { "type": "wait_for", "text": "Success", "timeoutMs": 40000 },
+    { "type": "click_confirm", "text": "Send Vote", "attempts": 3, "gapMs": 4000 }
+  ]
+}

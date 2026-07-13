@@ -1,0 +1,20 @@
+# Python
+.venv/
+venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+*.egg-info/
+build/
+dist/
+*.spec
+
+# .NET
+[Bb]in/
+[Oo]bj/
+publish/
+*.user
+
+# Runtime artifacts
+failure_*.png
+autoflow-screenshot.png

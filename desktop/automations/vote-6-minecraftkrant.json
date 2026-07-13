@@ -1,0 +1,11 @@
+{
+  "name": "Vote 6: MinecraftKrant",
+  "description": "Dutch site, no captcha. Fills username and clicks 'Stem op deze server'. Pass --var username=YOURNAME.",
+  "vars": { "username": "" },
+  "steps": [
+    { "type": "open_url", "url": "https://minecraftkrant.nl/server/jartexnetwork/vote", "browser": "chrome" },
+    { "type": "wait_for", "selector": "#minecraft_name", "timeoutMs": 30000 },
+    { "type": "fill", "selector": "#minecraft_name", "text": "{username}" },
+    { "type": "click_confirm", "text": "Stem op deze server", "attempts": 3, "gapMs": 3000 }
+  ]
+}

@@ -1,0 +1,77 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/legal-automation/desktop/automation.schema.json",
+  "title": "AutoFlow automation",
+  "description": "A portable automation: a named, ordered list of typed steps. Consumed identically by the Python and .NET engines.",
+  "type": "object",
+  "required": ["name", "steps"],
+  "additionalProperties": false,
+  "properties": {
+    "name": { "type": "string" },
+    "description": { "type": "string" },
+    "vars": {
+      "type": "object",
+      "description": "Default values for {token} substitution (e.g. username). Overridable from the CLI.",
+      "additionalProperties": { "type": "string" }
+    },
+    "steps": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/step" }
+    }
+  },
+  "$defs": {
+    "retry": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "attempts": { "type": "integer", "minimum": 1, "default": 1 },
+        "backoffMs": { "type": "integer", "minimum": 0, "default": 600 }
+      }
+    },
+    "step": {
+      "type": "object",
+      "required": ["type"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "open_url", "wait_for", "fill", "click", "ensure_checked",
+            "click_confirm", "verify", "press", "reload", "screenshot",
+            "clear_site_data",
+            "launch", "focus_window", "ui_click", "ui_fill", "close_window",
+            "sleep", "manual", "click_xy", "type_text"
+          ]
+        },
+        "retry": { "$ref": "#/$defs/retry" },
+
+        "url": { "type": "string" },
+        "browser": { "type": "string", "enum": ["chrome", "msedge", "chromium", "firefox"] },
+        "selector": { "type": "string" },
+        "text": { "type": "string" },
+        "label": { "type": "string" },
+        "role": { "type": "string" },
+        "exact": { "type": "boolean" },
+        "checked": { "type": "boolean" },
+        "present": { "type": "boolean" },
+        "confirmText": { "type": "string" },
+        "attempts": { "type": "integer", "minimum": 1 },
+        "gapMs": { "type": "integer", "minimum": 0 },
+        "timeoutMs": { "type": "integer", "minimum": 0 },
+        "key": { "type": "string" },
+        "path": { "type": "string" },
+
+        "args": { "type": "array", "items": { "type": "string" } },
+        "title": { "type": "string" },
+        "name": { "type": "string" },
+        "automationId": { "type": "string" },
+        "controlType": { "type": "string" },
+
+        "ms": { "type": "integer", "minimum": 0 },
+        "message": { "type": "string" },
+        "x": { "type": "integer" },
+        "y": { "type": "integer" }
+      },
+      "additionalProperties": false
+    }
+  }
+}

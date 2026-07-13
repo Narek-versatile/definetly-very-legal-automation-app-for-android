@@ -1,0 +1,10 @@
+{
+  "name": "Native demo: Notepad",
+  "description": "Launches Notepad and types into it via UI Automation / keyboard — proves the native-app driver. Windows only.",
+  "steps": [
+    { "type": "launch", "path": "notepad.exe" },
+    { "type": "sleep", "ms": 1500 },
+    { "type": "focus_window", "title": "Notepad" },
+    { "type": "type_text", "text": "AutoFlow drove a native Windows app." }
+  ]
+}

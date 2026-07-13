@@ -1,0 +1,16 @@
+{
+  "name": "Vote 5: Minecraft-MP",
+  "description": "Clears the site's cookies (fixes the captcha), reloads, fills username, ticks agree only if needed, waits for Cloudflare, then votes. Pass --var username=YOURNAME.",
+  "vars": { "username": "" },
+  "steps": [
+    { "type": "open_url", "url": "https://minecraft-mp.com/server/52462/vote/", "browser": "chrome" },
+    { "type": "clear_site_data" },
+    { "type": "reload" },
+    { "type": "wait_for", "selector": "#nickname", "timeoutMs": 40000 },
+    { "type": "fill", "selector": "#nickname", "text": "{username}" },
+    { "type": "ensure_checked", "selector": "#accept", "checked": true },
+    { "type": "manual", "message": "Complete the Cloudflare check if it asks. Voting waits for 'Success'.", "timeoutMs": 5000 },
+    { "type": "wait_for", "text": "Success", "timeoutMs": 40000 },
+    { "type": "click_confirm", "text": "Vote", "exact": true, "attempts": 3, "gapMs": 4000 }
+  ]
+}

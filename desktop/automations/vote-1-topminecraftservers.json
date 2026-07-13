@@ -1,0 +1,12 @@
+{
+  "name": "Vote 1: TopMinecraftServers",
+  "description": "Fills username and clicks Vote. Invisible reCAPTCHA (usually auto-passes). Pass --var username=YOURNAME.",
+  "vars": { "username": "" },
+  "steps": [
+    { "type": "open_url", "url": "https://topminecraftservers.org/vote/18687", "browser": "chrome" },
+    { "type": "wait_for", "selector": "#username", "timeoutMs": 30000 },
+    { "type": "fill", "selector": "#username", "text": "{username}" },
+    { "type": "click_confirm", "selector": "#voteButton", "attempts": 3, "gapMs": 3000 },
+    { "type": "manual", "message": "Solve the reCAPTCHA if one appears, then wait.", "timeoutMs": 15000 }
+  ]
+}

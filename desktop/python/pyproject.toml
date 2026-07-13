@@ -1,0 +1,28 @@
+[project]
+name = "autoflow"
+version = "0.1.0"
+description = "Cross-platform automation engine (Playwright browser + Windows UI Automation) driven by portable JSON automations."
+requires-python = ">=3.10"
+dependencies = [
+    "playwright>=1.40",
+]
+
+[project.optional-dependencies]
+native = [
+    "pywinauto>=0.6.8; sys_platform == 'win32'",
+    "pyautogui>=0.9.54",
+]
+dev = [
+    "pytest>=7.4",
+]
+
+[project.scripts]
+autoflow = "autoflow.cli:main"
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["autoflow*"]

@@ -1,0 +1,78 @@
+name: Desktop (Python)
+
+on:
+  push:
+    branches:
+      - claude/android-automation-app-pwxptp
+      - main
+    paths:
+      - "desktop/**"
+      - ".github/workflows/desktop-python.yml"
+  pull_request:
+    paths:
+      - "desktop/**"
+      - ".github/workflows/desktop-python.yml"
+  workflow_dispatch:
+
+defaults:
+  run:
+    working-directory: desktop/python
+
+jobs:
+  test:
+    name: Test (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install package + dev deps
+        run: python -m pip install -e ".[dev]"
+
+      - name: Install Playwright Chromium
+        run: python -m playwright install --with-deps chromium
+
+      - name: Unit tests
+        run: python -m pytest -q
+
+      - name: End-to-end self-test against local form (headless)
+        shell: bash
+        run: |
+          python -m http.server 8123 --directory ../testpages &
+          SERVER_PID=$!
+          sleep 2
+          python -m autoflow.cli run ../automations/_selftest.json \
+            --var baseurl=http://127.0.0.1:8123 --var username=CiTester --headless
+          kill $SERVER_PID
+
+  package:
+    name: Package Windows exe
+    runs-on: windows-latest
+    needs: test
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install package + PyInstaller
+        run: |
+          python -m pip install -e .
+          python -m pip install pyinstaller
+
+      - name: Build single-file exe
+        run: pyinstaller --onefile --name autoflow --collect-all playwright autoflow/__main__.py
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: autoflow-python-win
+          path: desktop/python/dist/autoflow.exe
+          if-no-files-found: error

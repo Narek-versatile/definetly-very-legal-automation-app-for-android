@@ -1,0 +1,12 @@
+{
+  "name": "Vote 2: Best-Minecraft-Servers",
+  "description": "Fills username and clicks Vote!. Pass --var username=YOURNAME.",
+  "vars": { "username": "" },
+  "steps": [
+    { "type": "open_url", "url": "https://best-minecraft-servers.co/server-jartexnetwork.4402/vote", "browser": "chrome" },
+    { "type": "wait_for", "selector": "input[name=username]", "timeoutMs": 30000 },
+    { "type": "fill", "selector": "input[name=username]", "text": "{username}" },
+    { "type": "click_confirm", "text": "Vote!", "attempts": 3, "gapMs": 3000 },
+    { "type": "manual", "message": "Solve the reCAPTCHA if one appears, then wait.", "timeoutMs": 15000 }
+  ]
+}
