@@ -14,6 +14,10 @@ on:
       - ".github/workflows/desktop-dotnet.yml"
   workflow_dispatch:
 
+concurrency:
+  group: desktop-dotnet-${{ github.ref }}
+  cancel-in-progress: true
+
 defaults:
   run:
     working-directory: desktop/dotnet
@@ -22,6 +26,7 @@ jobs:
   build-test:
     name: Build, test, publish (windows)
     runs-on: windows-latest
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
 
