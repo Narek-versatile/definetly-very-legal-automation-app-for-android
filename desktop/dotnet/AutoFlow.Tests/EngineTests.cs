@@ -99,6 +99,23 @@ public class EngineTests
     }
 
     [Fact]
+    public async Task Engine_reports_progress_events()
+    {
+        var events = new List<StepEvent>();
+        var collector = new SyncProgress(events.Add);
+        await using var engine = new Engine(progress: collector);
+        var auto = new Automation { Name = "t", Steps = { Sleep(attempts: 1, backoffMs: 0) } };
+
+        var result = await engine.RunAsync(auto);
+
+        Assert.True(result.Ok);
+        Assert.Equal(StepPhase.Started, events[0].Phase);
+        Assert.Equal(StepPhase.Succeeded, events[^1].Phase);
+        Assert.Equal(0, events[0].Index);
+        Assert.Equal(1, events[0].Total);
+    }
+
+    [Fact]
     public void Automations_match_schema_types()
     {
         var schemaPath = Path.Combine(DesktopDir(), "schema", "automation.schema.json");
@@ -133,5 +150,14 @@ public class EngineTests
                 throw new InvalidOperationException("boom");
             return Task.CompletedTask;
         }
+    }
+
+    // Synchronous IProgress so the test observes events deterministically
+    // (Progress<T> would marshal asynchronously to a captured context).
+    private sealed class SyncProgress : IProgress<StepEvent>
+    {
+        private readonly Action<StepEvent> _sink;
+        public SyncProgress(Action<StepEvent> sink) => _sink = sink;
+        public void Report(StepEvent value) => _sink(value);
     }
 }

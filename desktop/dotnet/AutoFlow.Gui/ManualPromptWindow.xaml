@@ -1,0 +1,13 @@
+<Window x:Class="AutoFlow.Gui.ManualPromptWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Manual step" Height="210" Width="440"
+        WindowStartupLocation="CenterOwner" ResizeMode="NoResize" ShowInTaskbar="False">
+  <StackPanel Margin="16">
+    <TextBlock Text="Manual step required" FontWeight="Bold" FontSize="14" Margin="0,0,0,8" />
+    <TextBlock x:Name="MessageText" TextWrapping="Wrap" Margin="0,0,0,12" />
+    <TextBlock x:Name="CountdownText" Foreground="Gray" Margin="0,0,0,14" />
+    <Button Content="Continue" Click="Continue_Click" HorizontalAlignment="Right"
+            Padding="18,4" IsDefault="True" />
+  </StackPanel>
+</Window>

@@ -58,7 +58,7 @@ jobs:
             --var baseurl=http://127.0.0.1:8123 --var username=CiTester --headless
           kill $SERVER_PID
 
-      - name: Publish single-file exe
+      - name: Publish CLI single-file exe
         run: >
           dotnet publish AutoFlow.Cli/AutoFlow.Cli.csproj -c Release -r win-x64
           --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true
@@ -68,4 +68,16 @@ jobs:
         with:
           name: autoflow-dotnet-win
           path: desktop/dotnet/publish/autoflow.exe
+          if-no-files-found: error
+
+      - name: Publish GUI single-file exe
+        run: >
+          dotnet publish AutoFlow.Gui/AutoFlow.Gui.csproj -c Release -r win-x64
+          --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true
+          -o publish-gui
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: autoflow-gui-win
+          path: desktop/dotnet/publish-gui/AutoFlow.Gui.exe
           if-no-files-found: error

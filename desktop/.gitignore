@@ -13,6 +13,7 @@ dist/
 [Bb]in/
 [Oo]bj/
 publish/
+publish-gui/
 *.user
 
 # Runtime artifacts

@@ -71,6 +71,25 @@ Both CLIs share the same verbs and flags: `run <file> [--var k=v …] [--headles
 [--keep-open]` and `list <dir>`. Because both read the same JSON, any automation
 runs identically under either engine.
 
+## GUI (Windows)
+
+`AutoFlow.Gui` is a WPF front‑end over the same `AutoFlow.Core`, so no automation
+logic is duplicated — it just drives the engine from a window instead of the CLI:
+
+```bash
+cd desktop/dotnet
+dotnet run --project AutoFlow.Gui
+```
+
+Pick the `automations` folder, choose an automation, edit its variables (a
+`username` field is always shown), toggle **Headless**, and hit **Run**. Steps
+light up live — `running → ok` (or `retry` / `failed`) — with a scrolling log and
+an OK/FAILED banner (plus the failure‑screenshot path). A `manual` step (e.g. a
+captcha) pops a **Continue** dialog with a countdown, replacing the CLI's
+press‑Enter pause. Live updates flow through `AutoFlow.Core`'s `StepEvent`
+progress events (`Engine(..., progress:)`); the captcha dialog is injected via a
+`GuiGenericDriver : GenericDriver` — the same driver‑injection seam the tests use.
+
 ## The self‑test (how CI proves the engine end‑to‑end)
 
 [`automations/_selftest.json`](automations/_selftest.json) drives
@@ -89,7 +108,8 @@ The native driver is proven separately by
 - **`.github/workflows/desktop-python.yml`** — pytest on Ubuntu + Windows, the
   headless self‑test, and a one‑file `autoflow.exe` (PyInstaller) artifact.
 - **`.github/workflows/desktop-dotnet.yml`** — `dotnet test` + the headless
-  self‑test on Windows, and a self‑contained single‑file `autoflow.exe` artifact.
+  self‑test on Windows, and self‑contained single‑file `autoflow.exe` (CLI) and
+  `AutoFlow.Gui.exe` (WPF) artifacts.
 
 ## Layout
 
@@ -100,10 +120,15 @@ desktop/
   testpages/form.html             # local page for the CI self-test
   python/                         # reference implementation
   dotnet/                         # parallel .NET implementation
+    AutoFlow.Core/                # engine + drivers (shared by CLI and GUI)
+    AutoFlow.Cli/                 # console front-end
+    AutoFlow.Gui/                 # WPF front-end (Windows)
+    AutoFlow.Tests/               # xUnit tests
 ```
 
 ## Not here (yet)
 
-A GUI (the CLI comes first); macOS/Linux native drivers (the engine is portable —
-only the native driver is OS‑specific); and anything that tries to defeat a
-captcha (out of scope and against site terms — hence the `manual` pause).
+macOS/Linux native drivers (the engine is portable — only the native driver is
+OS‑specific); a Python GUI (the WPF one covers the Windows use case); and anything
+that tries to defeat a captcha (out of scope and against site terms — hence the
+`manual` pause).

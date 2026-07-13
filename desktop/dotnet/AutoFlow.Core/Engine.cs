@@ -12,6 +12,16 @@ public sealed class RunResult
     public string? Screenshot { get; set; }
 }
 
+/// <summary>Phase of a step while a run is in progress (for live UIs).</summary>
+public enum StepPhase { Started, Retrying, Succeeded, Failed }
+
+/// <summary>
+/// A live progress event emitted per step during RunAsync. A GUI can subscribe
+/// via an IProgress created on the UI thread so updates marshal back automatically.
+/// </summary>
+public sealed record StepEvent(int Index, int Total, string Describe, StepPhase Phase,
+    int Attempt, string? Message = null);
+
 /// <summary>
 /// Runs an Automation's steps in order with per-step retry/backoff, structured
 /// logging and a failure screenshot — the async C# mirror of the Python Engine
@@ -35,15 +45,18 @@ public sealed class Engine : IAsyncDisposable
     };
 
     private readonly Dictionary<string, string> _variables;
+    private readonly IProgress<StepEvent>? _progress;
 
     public WebDriver Web { get; }
     public NativeDriver Native { get; }
     public GenericDriver Generic { get; }
 
     public Engine(IReadOnlyDictionary<string, string>? variables = null, bool headed = true,
-        WebDriver? web = null, NativeDriver? native = null, GenericDriver? generic = null)
+        WebDriver? web = null, NativeDriver? native = null, GenericDriver? generic = null,
+        IProgress<StepEvent>? progress = null)
     {
         _variables = variables is null ? new() : new Dictionary<string, string>(variables);
+        _progress = progress;
         Web = web ?? new WebDriver(headed);
         Native = native ?? new NativeDriver();
         Generic = generic ?? new GenericDriver();
@@ -57,11 +70,13 @@ public sealed class Engine : IAsyncDisposable
 
         var result = new RunResult { Name = automation.Name };
 
-        for (int index = 0; index < automation.Steps.Count; index++)
+        int total = automation.Steps.Count;
+        for (int index = 0; index < total; index++)
         {
             var step = automation.Steps[index];
             var describe = Describe(step);
-            Console.WriteLine($"  [{index + 1}/{automation.Steps.Count}] {describe}");
+            Console.WriteLine($"  [{index + 1}/{total}] {describe}");
+            _progress?.Report(new StepEvent(index, total, describe, StepPhase.Started, 0));
 
             int attempts = 0;
             string lastErr = "not run";
@@ -78,7 +93,10 @@ public sealed class Engine : IAsyncDisposable
                 {
                     lastErr = $"{ex.GetType().Name}: {ex.Message}";
                     if (attempts < step.Retry.Attempts)
+                    {
+                        _progress?.Report(new StepEvent(index, total, describe, StepPhase.Retrying, attempts, lastErr));
                         await Task.Delay(step.Retry.BackoffMs);
+                    }
                 }
             }
 
@@ -89,9 +107,11 @@ public sealed class Engine : IAsyncDisposable
                 result.Ok = false;
                 result.Screenshot = await CaptureFailureAsync(automation, index);
                 Console.WriteLine($"      x {lastErr}");
+                _progress?.Report(new StepEvent(index, total, describe, StepPhase.Failed, attempts, lastErr));
                 break;
             }
             Console.WriteLine("      ok");
+            _progress?.Report(new StepEvent(index, total, describe, StepPhase.Succeeded, attempts));
         }
 
         return result;
