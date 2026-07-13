@@ -21,7 +21,7 @@ public sealed class NativeDriver : IDisposable
 
     private static void RequireWindows()
     {
-        if (!OperatingSystem.IsWindows())
+        if (!System.OperatingSystem.IsWindows())
             throw new PlatformNotSupportedException("native steps require Windows");
     }
 
