@@ -31,7 +31,7 @@ def cmd_run(args) -> int:
         if not args.keep_open:
             engine.close()
     passed = sum(1 for s in result.steps if s.ok)
-    print(f"\n{'OK' if result.ok else 'FAILED'} — {passed}/{len(result.steps)} steps"
+    print(f"\n{'OK' if result.ok else 'FAILED'} - {passed}/{len(result.steps)} steps"
           + (f"  (screenshot: {result.screenshot})" if result.screenshot else ""))
     return 0 if result.ok else 1
 
@@ -65,6 +65,13 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def main(argv: list[str] | None = None) -> int:
+    # Windows consoles default to a legacy codepage (cp1252); force UTF-8 so any
+    # Unicode in an automation's messages never crashes the run on output.
+    for stream in (sys.stdout, sys.stderr):
+        try:
+            stream.reconfigure(encoding="utf-8")
+        except Exception:
+            pass
     args = build_parser().parse_args(argv if argv is not None else sys.argv[1:])
     return args.func(args)
 

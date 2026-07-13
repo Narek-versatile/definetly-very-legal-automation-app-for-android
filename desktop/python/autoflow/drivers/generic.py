@@ -9,10 +9,10 @@ class GenericDriver:
     def sleep(self, ms=1000, **_):
         time.sleep(max(0, int(ms)) / 1000)
 
-    def manual(self, message="Do the manual step, then wait…", timeoutMs=20000, **_):
-        # Alert the user and pause — for flows the engine can't finish (captchas).
+    def manual(self, message="Do the manual step, then wait...", timeoutMs=20000, **_):
+        # Alert the user and pause - for flows the engine can't finish (captchas).
         print(f"\n  [manual] {message}\n  Waiting up to {int(timeoutMs)/1000:.0f}s "
-              f"(press Enter to continue sooner)…")
+              f"(press Enter to continue sooner)...")
         _wait_or_enter(int(timeoutMs) / 1000)
 
     def click_xy(self, x=0, y=0, **_):

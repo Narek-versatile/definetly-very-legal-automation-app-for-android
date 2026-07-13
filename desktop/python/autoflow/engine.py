@@ -71,9 +71,9 @@ class Engine:
             if not ok:
                 result.ok = False
                 result.screenshot = self._capture_failure(automation, index)
-                print(f"      ✗ {last_err}")
+                print(f"      x {last_err}")
                 break
-            print("      ✓")
+            print("      ok")
 
         return result
 
