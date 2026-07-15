@@ -2,4 +2,15 @@
     <style name="Theme.LegalAutomation" parent="android:Theme.Material.Light.NoActionBar">
         <item name="android:statusBarColor" tools:targetApi="l">@android:color/transparent</item>
     </style>
+
+    <!-- Translucent, no-animation theme for TapRecorderActivity: lets the app
+         underneath show through (frozen last frame) while we capture a tap. -->
+    <style name="Theme.Transparent" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowIsTranslucent">true</item>
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:windowAnimationStyle">@null</item>
+        <item name="android:windowIsFloating">false</item>
+        <item name="android:backgroundDimEnabled">false</item>
+    </style>
 </resources>

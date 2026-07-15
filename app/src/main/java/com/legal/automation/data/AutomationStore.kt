@@ -148,6 +148,7 @@ class AutomationStore(context: Context) {
             Step.HideKeyboard(),
             // Wait for the vote button to finish loading before tapping.
             Step.WaitFor(text = "Click to Vote", timeoutMs = 20000),
+            Step.Sleep(ms = 1000), // extra settle time before the tap
             Step.TapAndConfirm(viewId = "voteButton", attempts = 3, gapMs = 4000),
         ),
     )
@@ -183,7 +184,8 @@ class AutomationStore(context: Context) {
             Step.HideKeyboard(),
             Step.EnsureChecked(viewId = "accept", checked = true),
             Step.WaitFor(text = "Success", timeoutMs = 40000), // Turnstile gate
-            Step.TapAndConfirm(text = "Vote", attempts = 3, gapMs = 4000),
+            Step.Sleep(ms = 2000), // extra settle time before the single tap
+            Step.TapAndConfirm(text = "Vote", attempts = 1, gapMs = 4000),
         ),
     )
 
@@ -211,6 +213,7 @@ class AutomationStore(context: Context) {
             Step.WaitFor(text = "Minecraft Username", timeoutMs = 30000),
             Step.InputText(text = "{username}", intoId = "username-input", retry = RetryPolicy(attempts = 6, backoffMs = 2000)),
             Step.HideKeyboard(),
+            Step.Sleep(ms = 7000), // let the page settle before submitting
             Step.TapAndConfirm(viewId = "submitter", attempts = 3, gapMs = 5000),
             Step.Sleep(ms = 5000), // this site needs a moment after submit
         ),

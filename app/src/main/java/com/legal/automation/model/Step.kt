@@ -265,4 +265,19 @@ sealed class Step {
     ) : Step() {
         override fun describe() = "Manual: $message"
     }
+
+    /**
+     * Brings this app back to the foreground. Uses Shizuku (`am start`) when
+     * available since background activity starts are otherwise restricted;
+     * falls back to a normal launch intent. Not run automatically — insert it
+     * explicitly wherever a flow needs to hand control back to this app (e.g.
+     * after tapping into another app during a sweep).
+     */
+    @Serializable
+    @SerialName("return_to_app")
+    data class ReturnToApp(
+        override val retry: RetryPolicy = RetryPolicy(attempts = 1),
+    ) : Step() {
+        override fun describe() = "Return to this app"
+    }
 }

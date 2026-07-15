@@ -192,6 +192,23 @@ class AutomationEngine(
             delay(step.timeoutMs)
             ok()
         }
+
+        is Step.ReturnToApp -> returnToApp()
+    }
+
+    private suspend fun returnToApp(): StepResult {
+        if (shizukuUsable()) {
+            val out = shizuku.exec("am start -n ${context.packageName}/.ui.MainActivity")
+            if (out != null && !out.startsWith("ERROR")) return ok()
+        }
+        return runCatching {
+            context.packageManager.getLaunchIntentForPackage(context.packageName)
+                ?.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                ?.let { context.startActivity(it) }
+        }.fold(
+            onSuccess = { ok() },
+            onFailure = { fail("could not return to app: ${it.message}") },
+        )
     }
 
     private fun openUrl(step: Step.OpenUrl): StepResult {

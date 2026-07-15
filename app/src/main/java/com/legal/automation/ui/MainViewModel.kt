@@ -19,6 +19,14 @@ class MainViewModel(private val app: App) : ViewModel() {
     val useShizuku = app.settings.useShizuku
     val username = app.settings.username
     val realTaps = app.settings.realTaps
+    val nicknames = app.settings.nicknames
+    val betweenVotesMs = app.settings.betweenVotesMs
+    val postCycleAppPackage = app.settings.postCycleAppPackage
+    val postCycleAppLabel = app.settings.postCycleAppLabel
+    val postCycleTapX = app.settings.postCycleTapX
+    val postCycleTapY = app.settings.postCycleTapY
+    val postCycleWaitMs = app.settings.postCycleWaitMs
+    val sweepState = com.legal.automation.engine.SweepRunState.state
 
     init {
         viewModelScope.launch { app.store.load() }
@@ -43,6 +51,20 @@ class MainViewModel(private val app: App) : ViewModel() {
 
     fun run(automation: Automation) {
         com.legal.automation.engine.RunnerService.start(app, automation.id)
+    }
+
+    fun setNicknames(value: List<String>) = app.settings.setNicknames(value)
+
+    fun setBetweenVotesMs(value: Long) = app.settings.setBetweenVotesMs(value)
+
+    fun setPostCycleApp(packageName: String?, label: String) = app.settings.setPostCycleApp(packageName, label)
+
+    fun setPostCycleTap(x: Int?, y: Int?) = app.settings.setPostCycleTap(x, y)
+
+    fun setPostCycleWaitMs(value: Long) = app.settings.setPostCycleWaitMs(value)
+
+    fun startSweep() {
+        com.legal.automation.engine.SweepRunnerService.start(app)
     }
 
     fun save(automation: Automation) {

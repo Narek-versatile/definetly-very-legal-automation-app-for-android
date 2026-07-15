@@ -35,6 +35,14 @@
             </intent-filter>
         </activity>
 
+        <!-- Translucent tap-location recorder used by the step editor and the
+             vote-sweep post-cycle setup. -->
+        <activity
+            android:name=".ui.TapRecorderActivity"
+            android:exported="false"
+            android:excludeFromRecents="true"
+            android:theme="@style/Theme.Transparent" />
+
         <!-- The cross-app automation engine (find-by-text, tap, scroll, verify). -->
         <service
             android:name=".service.AutomationAccessibilityService"
@@ -57,6 +65,16 @@
             <property
                 android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
                 android:value="Runs user-defined UI automations across apps." />
+        </service>
+
+        <!-- Foreground runner for the multi-nickname vote sweep. -->
+        <service
+            android:name=".engine.SweepRunnerService"
+            android:exported="false"
+            android:foregroundServiceType="specialUse">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="Runs the multi-nickname vote sweep across apps." />
         </service>
 
         <!-- Shizuku wiring for low-level operations (launch app, type text). -->

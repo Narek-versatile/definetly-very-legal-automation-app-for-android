@@ -1,5 +1,8 @@
 package com.legal.automation.ui
 
+import android.app.Activity
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -42,6 +45,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.toMutableStateList
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import com.legal.automation.model.Automation
@@ -234,6 +238,7 @@ private enum class StepType(val label: String) {
     VERIFY("Verify text"),
     SLEEP("Wait (ms)"),
     TAP_XY("Tap x,y"),
+    RETURN_TO_APP("Return to this app"),
 }
 
 @Composable
@@ -254,6 +259,14 @@ private fun AddStepDialog(
     var pkg by remember { mutableStateOf("") }
     // Which field the app picker fills when a pick is made.
     var pickerFor by remember { mutableStateOf<StepType?>(null) }
+    val context = LocalContext.current
+    val recordTap = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+        if (result.resultCode == Activity.RESULT_OK) {
+            val x = result.data?.getIntExtra(TapRecorderActivity.EXTRA_X, -1) ?: -1
+            val y = result.data?.getIntExtra(TapRecorderActivity.EXTRA_Y, -1) ?: -1
+            if (x >= 0 && y >= 0) { f1 = x.toString(); f2 = y.toString() }
+        }
+    }
 
     fun build(): Step? = when (type) {
         StepType.OPEN_URL -> f1.ifBlank { null }?.let {
@@ -291,6 +304,7 @@ private fun AddStepDialog(
             val x = f1.toIntOrNull(); val y = f2.toIntOrNull()
             if (x != null && y != null) Step.TapXy(x, y) else null
         }
+        StepType.RETURN_TO_APP -> Step.ReturnToApp()
     }
 
     AlertDialog(
@@ -367,7 +381,12 @@ private fun AddStepDialog(
                     StepType.TAP_XY -> {
                         Field("X", f1) { f1 = it }
                         Field("Y", f2) { f2 = it }
+                        OutlinedButton(onClick = { recordTap.launch(TapRecorderActivity.intent(context)) }) {
+                            Text("Record tap")
+                        }
                     }
+                    StepType.RETURN_TO_APP ->
+                        Text("Brings this app back to the foreground.")
                     StepType.SCROLL -> {
                         OutlinedButton(onClick = { scrollMenu = true }) {
                             Text("Direction: ${scroll.name.lowercase()}")

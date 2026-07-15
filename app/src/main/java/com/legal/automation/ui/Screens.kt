@@ -23,6 +23,7 @@ import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Error
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Receipt
+import androidx.compose.material.icons.filled.Repeat
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
@@ -72,6 +73,7 @@ private sealed interface Screen {
     data class Edit(val automation: Automation) : Screen
     data object Logs : Screen
     data object Scans : Screen
+    data object Sweep : Screen
 }
 
 @Composable
@@ -86,6 +88,7 @@ fun AppRoot(vm: MainViewModel) {
             },
             onLogs = { screen = Screen.Logs },
             onScans = { screen = Screen.Scans },
+            onSweep = { screen = Screen.Sweep },
         )
 
         is Screen.Edit -> EditorScreen(
@@ -96,6 +99,7 @@ fun AppRoot(vm: MainViewModel) {
 
         Screen.Logs -> LogsScreen(vm = vm, onBack = { screen = Screen.Home })
         Screen.Scans -> ScansScreen(vm = vm, onBack = { screen = Screen.Home })
+        Screen.Sweep -> SweepScreen(vm = vm, onBack = { screen = Screen.Home })
     }
 }
 
@@ -109,6 +113,7 @@ private fun HomeScreen(
     onNew: () -> Unit,
     onLogs: () -> Unit,
     onScans: () -> Unit,
+    onSweep: () -> Unit,
 ) {
     val automations by vm.automations.collectAsState()
     val runState by AutomationRunState.state.collectAsState()
@@ -124,6 +129,9 @@ private fun HomeScreen(
             TopAppBar(
                 title = { Text("Legal Automation") },
                 actions = {
+                    IconButton(onClick = onSweep) {
+                        Icon(Icons.Filled.Repeat, contentDescription = "Vote sweep")
+                    }
                     IconButton(onClick = onScans) {
                         Icon(Icons.Filled.Search, contentDescription = "Screen scans")
                     }

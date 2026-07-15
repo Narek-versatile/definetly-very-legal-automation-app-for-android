@@ -103,6 +103,24 @@ class AlertManager(private val context: Context) {
         vibrate()
     }
 
+    /** Fires once, after the whole nickname sweep (every nickname's vote chain
+     *  plus post-cycle steps) has finished. */
+    fun alertSweepComplete(nicknameCount: Int, successCount: Int, failCount: Int) {
+        val body = "$nicknameCount nickname${if (nicknameCount == 1) "" else "s"} swept — " +
+            "$successCount vote${if (successCount == 1) "" else "s"} ok" +
+            if (failCount > 0) ", $failCount failed" else ""
+        val builder = NotificationCompat.Builder(context, CHANNEL_ALERTS)
+            .setSmallIcon(android.R.drawable.stat_notify_sync)
+            .setContentTitle("Vote sweep finished")
+            .setContentText(body)
+            .setStyle(NotificationCompat.BigTextStyle().bigText(body))
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setAutoCancel(true)
+            .setVibrate(longArrayOf(0, 200, 100, 200))
+        notify(builder.build())
+        vibrate()
+    }
+
     fun alertSuccess(automationName: String) {
         val builder = NotificationCompat.Builder(context, CHANNEL_ALERTS)
             .setSmallIcon(android.R.drawable.stat_notify_sync)
