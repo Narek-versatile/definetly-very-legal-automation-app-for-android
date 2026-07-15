@@ -74,6 +74,7 @@ private sealed interface Screen {
     data object Logs : Screen
     data object Scans : Screen
     data object Sweep : Screen
+    data object Setup : Screen
 }
 
 @Composable
@@ -99,7 +100,12 @@ fun AppRoot(vm: MainViewModel) {
 
         Screen.Logs -> LogsScreen(vm = vm, onBack = { screen = Screen.Home })
         Screen.Scans -> ScansScreen(vm = vm, onBack = { screen = Screen.Home })
-        Screen.Sweep -> SweepScreen(vm = vm, onBack = { screen = Screen.Home })
+        Screen.Sweep -> SweepScreen(
+            vm = vm,
+            onBack = { screen = Screen.Home },
+            onOpenSetup = { screen = Screen.Setup },
+        )
+        Screen.Setup -> SetupScreen(vm = vm, onBack = { screen = Screen.Sweep })
     }
 }
 

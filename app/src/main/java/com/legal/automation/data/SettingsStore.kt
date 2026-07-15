@@ -134,6 +134,16 @@ class SettingsStore(context: Context) {
         _postCycleWaitMs.value = value
     }
 
+    /** Keep the screen awake while charging (via Shizuku) so a secure lock never
+     *  re-engages during overnight sweeps. */
+    private val _keepAwakeWhileCharging = MutableStateFlow(prefs.getBoolean(KEY_KEEP_AWAKE, false))
+    val keepAwakeWhileCharging: StateFlow<Boolean> = _keepAwakeWhileCharging.asStateFlow()
+
+    fun setKeepAwakeWhileCharging(value: Boolean) {
+        prefs.edit().putBoolean(KEY_KEEP_AWAKE, value).apply()
+        _keepAwakeWhileCharging.value = value
+    }
+
     /** Whether/how the sweep runs automatically every 3 hours. */
     private val _sweepSchedule = MutableStateFlow(
         runCatching { SweepSchedule.valueOf(prefs.getString(KEY_SCHEDULE, null) ?: "OFF") }
@@ -158,5 +168,6 @@ class SettingsStore(context: Context) {
         const val KEY_POST_TAP_Y = "sweep_post_tap_y"
         const val KEY_POST_WAIT_MS = "sweep_post_wait_ms"
         const val KEY_SCHEDULE = "sweep_schedule"
+        const val KEY_KEEP_AWAKE = "sweep_keep_awake"
     }
 }

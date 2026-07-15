@@ -27,12 +27,17 @@ class MainViewModel(private val app: App) : ViewModel() {
     val postCycleTapY = app.settings.postCycleTapY
     val postCycleWaitMs = app.settings.postCycleWaitMs
     val sweepSchedule = app.settings.sweepSchedule
+    val keepAwakeWhileCharging = app.settings.keepAwakeWhileCharging
     val sweepState = com.legal.automation.engine.SweepRunState.state
 
     init {
         viewModelScope.launch { app.store.load() }
         viewModelScope.launch { app.logs.load() }
         viewModelScope.launch { app.scans.load() }
+        // Re-assert stay-awake on launch (it resets on reboot) if the user wants it.
+        if (app.settings.keepAwakeWhileCharging.value) {
+            viewModelScope.launch { ShizukuManager.setStayAwakeWhileCharging(true) }
+        }
     }
 
     fun refreshShizuku() = ShizukuManager.refreshStatus()
@@ -71,6 +76,11 @@ class MainViewModel(private val app: App) : ViewModel() {
     fun setSweepSchedule(value: com.legal.automation.data.SweepSchedule) {
         app.settings.setSweepSchedule(value)
         com.legal.automation.engine.SweepScheduler.apply(app, value)
+    }
+
+    fun setKeepAwakeWhileCharging(value: Boolean) {
+        app.settings.setKeepAwakeWhileCharging(value)
+        viewModelScope.launch { ShizukuManager.setStayAwakeWhileCharging(value) }
     }
 
     fun save(automation: Automation) {

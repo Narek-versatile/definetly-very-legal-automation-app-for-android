@@ -164,6 +164,18 @@ object ShizukuManager {
         return out.contains("Success")
     }
 
+    /**
+     * Keeps the screen on while charging (`svc power stayon true`) — the same as
+     * the developer "Stay awake" option. With this on, unlock the phone once and
+     * the secure lock never re-engages (the screen never sleeps), so scheduled
+     * night sweeps run on an already-unlocked screen without the app ever
+     * needing your passcode. Requires Shizuku.
+     */
+    suspend fun setStayAwakeWhileCharging(on: Boolean): Boolean {
+        val out = exec("svc power stayon ${if (on) "true" else "false"}") ?: return false
+        return !out.startsWith("ERROR")
+    }
+
     fun unbind() {
         runCatching { Shizuku.unbindUserService(userServiceArgs, connection, true) }
         userService = null

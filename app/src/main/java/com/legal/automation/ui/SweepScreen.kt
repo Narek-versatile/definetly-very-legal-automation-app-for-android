@@ -50,7 +50,7 @@ import com.legal.automation.engine.SweepRunState
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SweepScreen(vm: MainViewModel, onBack: () -> Unit) {
+fun SweepScreen(vm: MainViewModel, onBack: () -> Unit, onOpenSetup: () -> Unit) {
     val nicknamesSaved by vm.nicknames.collectAsState()
     val betweenVotesMs by vm.betweenVotesMs.collectAsState()
     val postAppPackage by vm.postCycleAppPackage.collectAsState()
@@ -229,17 +229,18 @@ fun SweepScreen(vm: MainViewModel, onBack: () -> Unit) {
                             selected = schedule == SweepSchedule.AUTOMATIC,
                             onSelect = { vm.setSweepSchedule(SweepSchedule.AUTOMATIC) },
                         )
-                        if (schedule == SweepSchedule.AUTOMATIC) {
+                        if (schedule != SweepSchedule.OFF) {
                             Spacer(Modifier.height(8.dp))
                             Text(
-                                "Overnight / locked phone: the app wakes the screen and keeps it " +
-                                    "on while voting. It can only get past the lock screen if your " +
-                                    "screen lock is None or Swipe — a PIN/pattern/password can't be " +
-                                    "bypassed, so for unattended runs set the lock to Swipe (or keep " +
-                                    "the phone unlocked on a charger). Keep it plugged in.",
+                                "Overnight / locked phone needs setup (battery, alarms, and — for a " +
+                                    "secure lock — Shizuku stay-awake). Open the guide below.",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.error,
                             )
+                            Spacer(Modifier.height(8.dp))
+                            OutlinedButton(onClick = onOpenSetup, modifier = Modifier.fillMaxWidth()) {
+                                Text("Overnight / auto setup guide")
+                            }
                         }
                     }
                 }

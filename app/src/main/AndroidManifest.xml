@@ -17,6 +17,12 @@
     <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
 
+    <!-- Overnight/auto setup: exempt from battery optimisation so scheduled
+         sweeps aren't deferred, and allow drawing over other apps to help the
+         waker launch from the background on Samsung. -->
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+
     <!--
       Needed to list installed apps and launch them by package name (the
       "Launch app" step). This is a sensitive permission; the app only reads
