@@ -26,6 +26,7 @@ class MainViewModel(private val app: App) : ViewModel() {
     val postCycleTapX = app.settings.postCycleTapX
     val postCycleTapY = app.settings.postCycleTapY
     val postCycleWaitMs = app.settings.postCycleWaitMs
+    val sweepSchedule = app.settings.sweepSchedule
     val sweepState = com.legal.automation.engine.SweepRunState.state
 
     init {
@@ -65,6 +66,11 @@ class MainViewModel(private val app: App) : ViewModel() {
 
     fun startSweep() {
         com.legal.automation.engine.SweepRunnerService.start(app)
+    }
+
+    fun setSweepSchedule(value: com.legal.automation.data.SweepSchedule) {
+        app.settings.setSweepSchedule(value)
+        com.legal.automation.engine.SweepScheduler.apply(app, value)
     }
 
     fun save(automation: Automation) {

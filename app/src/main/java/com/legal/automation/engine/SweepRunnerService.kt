@@ -6,6 +6,7 @@ import android.content.Intent
 import android.content.pm.ServiceInfo
 import android.os.Build
 import android.os.IBinder
+import android.os.PowerManager
 import androidx.core.app.NotificationCompat
 import com.legal.automation.App
 import com.legal.automation.model.Automation
@@ -27,20 +28,42 @@ import kotlinx.coroutines.launch
 class SweepRunnerService : Service() {
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+    private var wakeLock: PowerManager.WakeLock? = null
 
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         val app = App.instance
         startAsForeground()
+        acquireWakeLock()
         scope.launch {
             try {
                 runSweep(app)
             } finally {
+                releaseWakeLock()
                 stopSelfSafely()
             }
         }
         return START_NOT_STICKY
+    }
+
+    /**
+     * Keeps the screen on (bright) for the whole sweep so the accessibility
+     * service can keep tapping and reading — Chrome won't render vote pages
+     * with the screen off. Capped so a stuck run can't hold it forever.
+     */
+    @Suppress("DEPRECATION")
+    private fun acquireWakeLock() {
+        val pm = getSystemService(Context.POWER_SERVICE) as PowerManager
+        wakeLock = pm.newWakeLock(
+            PowerManager.SCREEN_BRIGHT_WAKE_LOCK or PowerManager.ACQUIRE_CAUSES_WAKEUP,
+            "LegalAutomation:sweep",
+        ).also { runCatching { it.acquire(MAX_WAKE_MS) } }
+    }
+
+    private fun releaseWakeLock() {
+        wakeLock?.let { if (it.isHeld) runCatching { it.release() } }
+        wakeLock = null
     }
 
     private suspend fun runSweep(app: App) {
@@ -60,10 +83,19 @@ class SweepRunnerService : Service() {
 
         for ((nicknameIndex, nickname) in nicknames.withIndex()) {
             SweepRunState.update {
-                it.copy(nicknameIndex = nicknameIndex, currentNickname = nickname, phase = "Voting")
+                it.copy(nicknameIndex = nicknameIndex, currentNickname = nickname, phase = "Launching app")
             }
             app.settings.setUsername(nickname)
 
+            // Pre-cycle: before this nickname's votes, optionally launch the
+            // chosen app, tap the recorded spot, wait, then return here. Runs
+            // once at the start of every nickname (e.g. to rotate IP first).
+            val cyclePackage = app.settings.postCycleAppPackage.value
+            if (cyclePackage != null) {
+                app.engine.run(cycleAutomation(app, cyclePackage))
+            }
+
+            SweepRunState.update { it.copy(phase = "Voting") }
             for ((voteIndex, automation) in automations.withIndex()) {
                 SweepRunState.update { it.copy(voteIndex = voteIndex) }
                 val log = app.engine.run(automation)
@@ -73,11 +105,9 @@ class SweepRunnerService : Service() {
                 }
             }
 
-            val postCyclePackage = app.settings.postCycleAppPackage.value
-            if (postCyclePackage != null) {
-                SweepRunState.update { it.copy(phase = "Launching app") }
-                app.engine.run(postCycleAutomation(app, postCyclePackage))
-            } else if (nicknameIndex < nicknames.size - 1) {
+            // If there's no app cycle to space nicknames apart, still pause
+            // between one nickname's chain and the next.
+            if (cyclePackage == null && nicknameIndex < nicknames.size - 1) {
                 delay(app.settings.betweenVotesMs.value)
             }
         }
@@ -87,11 +117,11 @@ class SweepRunnerService : Service() {
         app.alerts.alertSweepComplete(nicknames.size, successCount, failCount)
     }
 
-    private fun postCycleAutomation(app: App, packageName: String): Automation {
+    private fun cycleAutomation(app: App, packageName: String): Automation {
         val x = app.settings.postCycleTapX.value
         val y = app.settings.postCycleTapY.value
         return Automation(
-            name = "Sweep: post-cycle",
+            name = "Sweep: app cycle",
             steps = listOfNotNull(
                 Step.LaunchApp(packageName = packageName, appLabel = app.settings.postCycleAppLabel.value),
                 Step.Sleep(ms = 1500),
@@ -133,6 +163,7 @@ class SweepRunnerService : Service() {
 
     companion object {
         private const val NOTIF_ID = 43
+        private const val MAX_WAKE_MS = 30 * 60 * 1000L // safety cap on the wakelock
         private val VOTE_IDS = listOf(
             "seed-vote-1", "seed-vote-2", "seed-vote-3", "seed-vote-4",
             "seed-vote-5", "seed-vote-6", "seed-vote-7",

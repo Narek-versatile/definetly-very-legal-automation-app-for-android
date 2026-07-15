@@ -203,19 +203,27 @@ class AutomationStore(context: Context) {
         ),
     )
 
-    /** minecraft.buzz: /vote/24 — input id="username-input", submit id="submitter", no captcha. */
+    /** minecraft.buzz: /vote/24 — input id="username-input", submit id="submitter".
+     *  Tapping submit opens a Cloudflare Turnstile "Almost there!" modal with its
+     *  own Submit button; that modal Submit is the one that actually finalises
+     *  the vote, so we wait for the challenge to pass then tap it. */
     private fun minecraftBuzzVote() = Automation(
         id = "seed-vote-7",
         name = "Vote 7: Minecraft.buzz",
-        description = "Fills your {username} and taps Submit.",
+        description = "Fills your {username}, taps the vote button, waits for the Cloudflare " +
+            "check, then taps the modal's Submit.",
         steps = listOf(
             Step.OpenUrl(url = "https://minecraft.buzz/vote/24", target = UrlTarget.GOOGLE_APP),
             Step.WaitFor(text = "Minecraft Username", timeoutMs = 30000),
             Step.InputText(text = "{username}", intoId = "username-input", retry = RetryPolicy(attempts = 6, backoffMs = 2000)),
             Step.HideKeyboard(),
-            Step.Sleep(ms = 7000), // let the page settle before submitting
-            Step.TapAndConfirm(viewId = "submitter", attempts = 3, gapMs = 5000),
-            Step.Sleep(ms = 5000), // this site needs a moment after submit
+            // Tap the vote/submit button — this opens the "Almost there!" modal.
+            Step.TapId(viewId = "submitter"),
+            // Wait for the Cloudflare Turnstile to finish and show "Success!".
+            Step.Sleep(ms = 22000),
+            // Tap the modal's Submit button to finalise the vote.
+            Step.TapText(text = "Submit", exact = true),
+            Step.Sleep(ms = 3000), // considered done
         ),
     )
 }

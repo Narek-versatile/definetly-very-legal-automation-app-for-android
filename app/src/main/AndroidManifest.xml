@@ -7,6 +7,16 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
 
+    <!-- Keep the screen on/awake during a sweep so the accessibility service can
+         keep tapping (the vote pages don't render with the screen off). -->
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+
+    <!-- The 3-hourly reminder / automatic sweep uses exact alarms that fire in
+         Doze, and re-arm after a reboot. -->
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
+    <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+
     <!--
       Needed to list installed apps and launch them by package name (the
       "Launch app" step). This is a sensitive permission; the app only reads
@@ -36,11 +46,21 @@
         </activity>
 
         <!-- Translucent tap-location recorder used by the step editor and the
-             vote-sweep post-cycle setup. -->
+             vote-sweep app-cycle setup. -->
         <activity
             android:name=".ui.TapRecorderActivity"
             android:exported="false"
             android:excludeFromRecents="true"
+            android:theme="@style/Theme.Transparent" />
+
+        <!-- Invisible waker for automatic (scheduled) sweeps: turns the screen
+             on and dismisses a non-secure keyguard before the sweep starts. -->
+        <activity
+            android:name=".ui.WakeActivity"
+            android:exported="false"
+            android:excludeFromRecents="true"
+            android:showWhenLocked="true"
+            android:turnScreenOn="true"
             android:theme="@style/Theme.Transparent" />
 
         <!-- The cross-app automation engine (find-by-text, tap, scroll, verify). -->
@@ -76,6 +96,21 @@
                 android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
                 android:value="Runs the multi-nickname vote sweep across apps." />
         </service>
+
+        <!-- Fires the 3-hourly reminder / automatic sweep alarms, and the
+             "Start sweep now" button on the reminder notification. -->
+        <receiver
+            android:name=".engine.SweepAlarmReceiver"
+            android:exported="false" />
+
+        <!-- Re-arms the sweep alarms after a reboot. -->
+        <receiver
+            android:name=".engine.BootReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+            </intent-filter>
+        </receiver>
 
         <!-- Shizuku wiring for low-level operations (launch app, type text). -->
         <provider

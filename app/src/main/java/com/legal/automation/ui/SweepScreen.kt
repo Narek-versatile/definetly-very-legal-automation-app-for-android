@@ -3,6 +3,7 @@ package com.legal.automation.ui
 import android.app.Activity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -28,6 +29,7 @@ import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -43,6 +45,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import com.legal.automation.data.SweepSchedule
 import com.legal.automation.engine.SweepRunState
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -55,6 +58,7 @@ fun SweepScreen(vm: MainViewModel, onBack: () -> Unit) {
     val postTapX by vm.postCycleTapX.collectAsState()
     val postTapY by vm.postCycleTapY.collectAsState()
     val postWaitMs by vm.postCycleWaitMs.collectAsState()
+    val schedule by vm.sweepSchedule.collectAsState()
     val sweepState by vm.sweepState.collectAsState()
 
     val nicknames = remember(nicknamesSaved) { nicknamesSaved.toMutableStateList() }
@@ -202,6 +206,45 @@ fun SweepScreen(vm: MainViewModel, onBack: () -> Unit) {
                 }
             }
 
+            item { Text("Schedule (every 3 hours)", style = MaterialTheme.typography.titleMedium) }
+
+            item {
+                Card {
+                    Column(Modifier.padding(16.dp)) {
+                        ScheduleOption(
+                            label = "Off",
+                            desc = "Only runs when you tap Start sweep.",
+                            selected = schedule == SweepSchedule.OFF,
+                            onSelect = { vm.setSweepSchedule(SweepSchedule.OFF) },
+                        )
+                        ScheduleOption(
+                            label = "Remind me every 3h",
+                            desc = "Posts a notification with a Start button — you tap to run.",
+                            selected = schedule == SweepSchedule.REMINDER,
+                            onSelect = { vm.setSweepSchedule(SweepSchedule.REMINDER) },
+                        )
+                        ScheduleOption(
+                            label = "Run automatically every 3h",
+                            desc = "Warns 5 and 1 minutes ahead, then runs the sweep on its own.",
+                            selected = schedule == SweepSchedule.AUTOMATIC,
+                            onSelect = { vm.setSweepSchedule(SweepSchedule.AUTOMATIC) },
+                        )
+                        if (schedule == SweepSchedule.AUTOMATIC) {
+                            Spacer(Modifier.height(8.dp))
+                            Text(
+                                "Overnight / locked phone: the app wakes the screen and keeps it " +
+                                    "on while voting. It can only get past the lock screen if your " +
+                                    "screen lock is None or Swipe — a PIN/pattern/password can't be " +
+                                    "bypassed, so for unattended runs set the lock to Swipe (or keep " +
+                                    "the phone unlocked on a charger). Keep it plugged in.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.error,
+                            )
+                        }
+                    }
+                }
+            }
+
             item {
                 Button(
                     onClick = { vm.startSweep() },
@@ -226,6 +269,26 @@ fun SweepScreen(vm: MainViewModel, onBack: () -> Unit) {
                 pickingApp = false
             },
         )
+    }
+}
+
+@Composable
+private fun ScheduleOption(
+    label: String,
+    desc: String,
+    selected: Boolean,
+    onSelect: () -> Unit,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth().clickable { onSelect() }.padding(vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        RadioButton(selected = selected, onClick = onSelect)
+        Spacer(Modifier.height(0.dp))
+        Column(Modifier.padding(start = 4.dp)) {
+            Text(label, style = MaterialTheme.typography.bodyLarge)
+            Text(desc, style = MaterialTheme.typography.bodySmall)
+        }
     }
 }
 

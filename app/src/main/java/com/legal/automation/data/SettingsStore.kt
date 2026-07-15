@@ -9,6 +9,18 @@ import kotlinx.serialization.builtins.serializer
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
 
+/** How the vote sweep is triggered on a 3-hour cadence. */
+enum class SweepSchedule {
+    /** Only runs when you tap Start. */
+    OFF,
+
+    /** Every 3 hours, posts a notification with a "Start sweep" button. */
+    REMINDER,
+
+    /** Every 3 hours, warns 5 and 1 minutes ahead, then runs the sweep itself. */
+    AUTOMATIC,
+}
+
 /**
  * Small persistent settings. The key one is [useShizuku]: when the user turns
  * it off (or Shizuku just isn't around), the engine runs in **non-Shizuku
@@ -113,13 +125,25 @@ class SettingsStore(context: Context) {
         _postCycleTapY.value = y
     }
 
-    /** How long to wait after the post-cycle tap before returning to this app. */
+    /** How long to wait after the app-cycle tap before returning to this app. */
     private val _postCycleWaitMs = MutableStateFlow(prefs.getLong(KEY_POST_WAIT_MS, 15000))
     val postCycleWaitMs: StateFlow<Long> = _postCycleWaitMs.asStateFlow()
 
     fun setPostCycleWaitMs(value: Long) {
         prefs.edit().putLong(KEY_POST_WAIT_MS, value).apply()
         _postCycleWaitMs.value = value
+    }
+
+    /** Whether/how the sweep runs automatically every 3 hours. */
+    private val _sweepSchedule = MutableStateFlow(
+        runCatching { SweepSchedule.valueOf(prefs.getString(KEY_SCHEDULE, null) ?: "OFF") }
+            .getOrDefault(SweepSchedule.OFF),
+    )
+    val sweepSchedule: StateFlow<SweepSchedule> = _sweepSchedule.asStateFlow()
+
+    fun setSweepSchedule(value: SweepSchedule) {
+        prefs.edit().putString(KEY_SCHEDULE, value.name).apply()
+        _sweepSchedule.value = value
     }
 
     private companion object {
@@ -133,5 +157,6 @@ class SettingsStore(context: Context) {
         const val KEY_POST_TAP_X = "sweep_post_tap_x"
         const val KEY_POST_TAP_Y = "sweep_post_tap_y"
         const val KEY_POST_WAIT_MS = "sweep_post_wait_ms"
+        const val KEY_SCHEDULE = "sweep_schedule"
     }
 }

@@ -2,7 +2,9 @@ package com.legal.automation.engine
 
 import android.app.NotificationChannel
 import android.app.NotificationManager
+import android.app.PendingIntent
 import android.content.Context
+import android.content.Intent
 import android.graphics.BitmapFactory
 import android.media.RingtoneManager
 import android.os.Build
@@ -101,6 +103,36 @@ class AlertManager(private val context: Context) {
             .setVibrate(longArrayOf(0, 200, 100, 200))
         notify(builder.build())
         vibrate()
+    }
+
+    /** The 3-hourly reminder (REMINDER mode): a notification with a button that
+     *  starts the sweep on tap. */
+    fun alertSweepReminder() {
+        val startIntent = Intent(context, SweepAlarmReceiver::class.java)
+            .setAction(SweepAlarmReceiver.ACTION_START_NOW)
+        val pi = PendingIntent.getBroadcast(
+            context, 100, startIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+        )
+        val builder = NotificationCompat.Builder(context, CHANNEL_ALERTS)
+            .setSmallIcon(android.R.drawable.stat_notify_sync)
+            .setContentTitle("Time to vote")
+            .setContentText("Tap Start to run the vote sweep for all your nicknames.")
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setAutoCancel(true)
+            .addAction(android.R.drawable.ic_media_play, "Start sweep", pi)
+        notify(builder.build())
+    }
+
+    /** A heads-up a few minutes before an AUTOMATIC run kicks off. */
+    fun alertSweepWarning(minutes: Int) {
+        val builder = NotificationCompat.Builder(context, CHANNEL_ALERTS)
+            .setSmallIcon(android.R.drawable.stat_sys_warning)
+            .setContentTitle("Auto vote in $minutes min")
+            .setContentText("The vote sweep will start automatically in $minutes minute${if (minutes == 1) "" else "s"}.")
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setAutoCancel(true)
+        notify(builder.build())
     }
 
     /** Fires once, after the whole nickname sweep (every nickname's vote chain
