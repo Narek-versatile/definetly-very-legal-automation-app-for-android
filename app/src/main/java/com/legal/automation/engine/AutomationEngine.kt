@@ -106,24 +106,7 @@ class AutomationEngine(
         )
         logs.add(log)
         AutomationRunState.reset()
-        returnToApp()
         return log
-    }
-
-    /** Bring this app back to the foreground so the user lands here when a run
-     *  finishes, instead of being left on the last vote page. Uses Shizuku
-     *  (`am start`) when available since background activity starts are
-     *  otherwise restricted; falls back to a normal launch intent. */
-    private suspend fun returnToApp() {
-        if (shizukuUsable()) {
-            val out = shizuku.exec("am start -n ${context.packageName}/.ui.MainActivity")
-            if (out != null && !out.startsWith("ERROR")) return
-        }
-        runCatching {
-            context.packageManager.getLaunchIntentForPackage(context.packageName)
-                ?.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                ?.let { context.startActivity(it) }
-        }
     }
 
     private val service: AutomationAccessibilityService?
