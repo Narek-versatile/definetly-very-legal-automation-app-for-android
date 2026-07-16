@@ -107,7 +107,8 @@ fun SetupScreen(vm: MainViewModel, onBack: () -> Unit) {
         item {
             ChecklistRow(
                 title = "Display over other apps",
-                subtitle = "Helps the waker launch from the background on Samsung.",
+                subtitle = "Shows the floating pause/resume bubble during a run, and helps the " +
+                    "waker launch from the background on Samsung.",
                 ok = overlayOk,
                 onClick = { SystemAccess.openOverlaySettings(context) },
             )

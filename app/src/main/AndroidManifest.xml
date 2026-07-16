@@ -103,6 +103,11 @@
                 android:value="Runs the multi-nickname vote sweep across apps." />
         </service>
 
+        <!-- Draggable floating pause/resume bubble shown while a run is active. -->
+        <service
+            android:name=".engine.FloatingControlService"
+            android:exported="false" />
+
         <!-- Fires the 3-hourly reminder / automatic sweep alarms, and the
              "Start sweep now" button on the reminder notification. -->
         <receiver

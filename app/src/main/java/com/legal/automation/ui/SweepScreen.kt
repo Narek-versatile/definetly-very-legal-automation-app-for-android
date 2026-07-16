@@ -60,6 +60,7 @@ fun SweepScreen(vm: MainViewModel, onBack: () -> Unit, onOpenSetup: () -> Unit) 
     val postWaitMs by vm.postCycleWaitMs.collectAsState()
     val schedule by vm.sweepSchedule.collectAsState()
     val sweepState by vm.sweepState.collectAsState()
+    val runPaused by vm.runPaused.collectAsState()
 
     val nicknames = remember(nicknamesSaved) { nicknamesSaved.toMutableStateList() }
     var newNickname by remember { mutableStateOf("") }
@@ -107,7 +108,7 @@ fun SweepScreen(vm: MainViewModel, onBack: () -> Unit, onOpenSetup: () -> Unit) 
             }
 
             if (sweepState.running) {
-                item { SweepRunningBanner(sweepState) }
+                item { SweepRunningBanner(sweepState, runPaused, onTogglePause = { vm.toggleRunPause() }) }
             }
 
             item { Text("Nicknames", style = MaterialTheme.typography.titleMedium) }
@@ -294,13 +295,18 @@ private fun ScheduleOption(
 }
 
 @Composable
-private fun SweepRunningBanner(state: SweepRunState.State) {
+private fun SweepRunningBanner(state: SweepRunState.State, paused: Boolean, onTogglePause: () -> Unit) {
     Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)) {
         Column(Modifier.padding(16.dp)) {
-            Text(
-                "Nickname ${state.nicknameIndex + 1} / ${state.totalNicknames}: “${state.currentNickname}”",
-                style = MaterialTheme.typography.titleSmall,
-            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    "Nickname ${state.nicknameIndex + 1} / ${state.totalNicknames}: " +
+                        "“${state.currentNickname}”${if (paused) " — Paused" else ""}",
+                    style = MaterialTheme.typography.titleSmall,
+                    modifier = Modifier.weight(1f),
+                )
+                TextButton(onClick = onTogglePause) { Text(if (paused) "Resume" else "Pause") }
+            }
             Spacer(Modifier.height(4.dp))
             Text(
                 if (state.phase == "Voting") "Vote ${state.voteIndex + 1} / ${state.totalVotes}" else state.phase,

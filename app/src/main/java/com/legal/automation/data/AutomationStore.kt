@@ -165,7 +165,11 @@ class AutomationStore(context: Context) {
             "votes. Chrome-specific — if a settings step fails, scan that screen and tell me.",
         steps = listOf(
             Step.OpenUrl(url = "https://minecraft-mp.com/server/52462/vote/", target = UrlTarget.GOOGLE_APP),
-            Step.Sleep(ms = 3500), // let the page (and its error) load
+            // Extra settle time before touching the page info sheet — a
+            // Cloudflare interstitial sometimes pops up right after load and
+            // steals the "Connection is secure" tap, which ruins the cookie
+            // clear below.
+            Step.Sleep(ms = 9500),
 
             // --- Clear this site's cookies/data via Chrome's page-info sheet ---
             Step.TapText(text = "Connection is secure"), // the padlock in the address bar
@@ -205,8 +209,11 @@ class AutomationStore(context: Context) {
 
     /** minecraft.buzz: /vote/24 — input id="username-input", submit id="submitter".
      *  Tapping submit opens a Cloudflare Turnstile "Almost there!" modal with its
-     *  own Submit button; that modal Submit is the one that actually finalises
-     *  the vote, so we wait for the challenge to pass then tap it. */
+     *  own Submit button (resource id "captcha_submit" — it has no accessible
+     *  "Submit" text of its own, so targeting by text kept hitting the page's
+     *  original submit button underneath instead); that modal button is the one
+     *  that actually finalises the vote, so we wait for the challenge to pass
+     *  then tap it by id. */
     private fun minecraftBuzzVote() = Automation(
         id = "seed-vote-7",
         name = "Vote 7: Minecraft.buzz",
@@ -221,8 +228,8 @@ class AutomationStore(context: Context) {
             Step.TapId(viewId = "submitter"),
             // Wait for the Cloudflare Turnstile to finish and show "Success!".
             Step.Sleep(ms = 22000),
-            // Tap the modal's Submit button to finalise the vote.
-            Step.TapText(text = "Submit", exact = true),
+            // Tap the modal's own Submit button (id captcha_submit) to finalise the vote.
+            Step.TapAndConfirm(viewId = "captcha_submit", attempts = 3, gapMs = 2000),
             Step.Sleep(ms = 3000), // considered done
         ),
     )

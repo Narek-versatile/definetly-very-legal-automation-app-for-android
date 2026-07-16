@@ -29,6 +29,9 @@ class MainViewModel(private val app: App) : ViewModel() {
     val sweepSchedule = app.settings.sweepSchedule
     val keepAwakeWhileCharging = app.settings.keepAwakeWhileCharging
     val sweepState = com.legal.automation.engine.SweepRunState.state
+    val runPaused = com.legal.automation.engine.RunControl.paused
+
+    fun toggleRunPause() = com.legal.automation.engine.RunControl.togglePause()
 
     init {
         viewModelScope.launch { app.store.load() }

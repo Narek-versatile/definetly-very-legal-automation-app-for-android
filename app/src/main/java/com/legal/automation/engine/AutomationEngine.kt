@@ -55,6 +55,8 @@ class AutomationEngine(
         }
 
         for ((index, step) in automation.steps.withIndex()) {
+            RunControl.awaitResume() // holds here while the floating bubble/in-app button is paused
+
             AutomationRunState.update {
                 it.copy(stepIndex = index, lastMessage = step.describe())
             }

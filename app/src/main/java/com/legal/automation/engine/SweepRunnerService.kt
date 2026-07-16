@@ -36,10 +36,13 @@ class SweepRunnerService : Service() {
         val app = App.instance
         startAsForeground()
         acquireWakeLock()
+        RunControl.reset()
+        FloatingControlService.start(this)
         scope.launch {
             try {
                 runSweep(app)
             } finally {
+                FloatingControlService.stop(this@SweepRunnerService)
                 releaseWakeLock()
                 stopSelfSafely()
             }

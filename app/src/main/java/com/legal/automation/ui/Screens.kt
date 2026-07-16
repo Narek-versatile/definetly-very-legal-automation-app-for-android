@@ -123,6 +123,7 @@ private fun HomeScreen(
 ) {
     val automations by vm.automations.collectAsState()
     val runState by AutomationRunState.state.collectAsState()
+    val runPaused by vm.runPaused.collectAsState()
     val shizuku by vm.shizukuStatus.collectAsState()
     val useShizuku by vm.useShizuku.collectAsState()
     val username by vm.username.collectAsState()
@@ -201,7 +202,7 @@ private fun HomeScreen(
             }
 
             if (runState.running) {
-                item { RunningBanner(runState) }
+                item { RunningBanner(runState, runPaused, onTogglePause = { vm.toggleRunPause() }) }
             }
 
             item {
@@ -237,10 +238,17 @@ private fun HomeScreen(
 }
 
 @Composable
-private fun RunningBanner(state: AutomationRunState.State) {
+private fun RunningBanner(state: AutomationRunState.State, paused: Boolean, onTogglePause: () -> Unit) {
     Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)) {
         Column(Modifier.padding(16.dp)) {
-            Text("Running “${state.automationName}”", style = MaterialTheme.typography.titleSmall)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    "Running “${state.automationName}”${if (paused) " — Paused" else ""}",
+                    style = MaterialTheme.typography.titleSmall,
+                    modifier = Modifier.weight(1f),
+                )
+                TextButton(onClick = onTogglePause) { Text(if (paused) "Resume" else "Pause") }
+            }
             Spacer(Modifier.height(4.dp))
             Text(
                 "Step ${state.stepIndex + 1} / ${state.totalSteps}: ${state.lastMessage}",

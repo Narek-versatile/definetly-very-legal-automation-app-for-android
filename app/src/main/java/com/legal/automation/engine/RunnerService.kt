@@ -34,10 +34,13 @@ class RunnerService : Service() {
         }
 
         startAsForeground(automation.name)
+        RunControl.reset()
+        FloatingControlService.start(this)
         scope.launch {
             try {
                 app.engine.run(automation)
             } finally {
+                FloatingControlService.stop(this@RunnerService)
                 stopSelfSafely()
             }
         }
